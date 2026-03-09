@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { protectedProcedure, router, backendFetch } from '@nhcs/api';
+import { protectedProcedure, router, backendFetch, TRPCError } from '@nhcs/api';
 import { registerProcedure, getProcedureMeta } from '@nhcs/registries';
 import { createEnvelopeSchema, createResultWrapperSchema } from '@nhcs/types';
 import { companySchema, companyFilterSchema } from './company.schema';
@@ -8,6 +8,17 @@ import { companySchema, companyFilterSchema } from './company.schema';
 registerProcedure('company.list', {
   mode: 'proxy',
   type: 'list',
+  criticality: 'critical',
+});
+registerProcedure('company.changeStatus', {
+  mode: 'proxy',
+  type: 'mutation',
+  criticality: 'critical',
+});
+
+registerProcedure('company.remove', {
+  mode: 'proxy',
+  type: 'mutation',
   criticality: 'critical',
 });
 
@@ -55,5 +66,44 @@ export const companyRouter = router({
       }
 
       return parsed.result;
+    }),
+
+  changeStatus: protectedProcedure
+    .input(
+      z.object({
+        id: z.number(),
+        status: z.enum(['T', 'F']),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const result = await backendFetch({
+        method: 'POST',
+        path: `/company/changestatus?id=${input.id}&status=${input.status}`,
+        headers: {
+          Authorization: `Bearer ${ctx.accessToken}`,
+        },
+        meta: getProcedureMeta('company.changeStatus'),
+      });
+
+      return result;
+    }),
+
+  remove: protectedProcedure
+    .input(
+      z.object({
+        id: z.number(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const result = await backendFetch({
+        method: 'POST',
+        path: `/company/delete/${input.id}`,
+        headers: {
+          Authorization: `Bearer ${ctx.accessToken}`,
+        },
+        meta: getProcedureMeta('company.remove'),
+      });
+
+      return result;
     }),
 });
