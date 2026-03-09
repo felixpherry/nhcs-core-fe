@@ -1,2 +1,2 @@
 export { createContext, type TRPCContext } from './context';
-export { router, publicProcedure, protectedProcedure } from './init';
+export { router, publicProcedure, protectedProcedure, TRPCError } from './init';

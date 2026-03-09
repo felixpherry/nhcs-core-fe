@@ -15,6 +15,7 @@ export const router = t.router;
 // Public procedure — no auth check
 // Used for: login, health check, public config
 export const publicProcedure = t.procedure;
+export { TRPCError };
 
 // Protected procedure — requires a valid session
 // Used for: everything else

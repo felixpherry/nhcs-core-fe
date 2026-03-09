@@ -14,4 +14,5 @@ export {
   router,
   publicProcedure,
   protectedProcedure,
+  TRPCError,
 } from './trpc';
