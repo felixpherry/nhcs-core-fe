@@ -24,6 +24,9 @@ importers:
 
   packages/api:
     dependencies:
+      '@nhcs/config':
+        specifier: workspace:*
+        version: link:../config
       '@nhcs/registries':
         specifier: workspace:*
         version: link:../registries
@@ -44,13 +47,23 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
+  packages/config: {}
+
   packages/features:
+    dependencies:
+      '@nhcs/config':
+        specifier: workspace:*
+        version: link:../config
     devDependencies:
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
 
   packages/registries:
+    dependencies:
+      '@nhcs/config':
+        specifier: workspace:*
+        version: link:../config
     devDependencies:
       typescript:
         specifier: ^5.7.0
@@ -58,6 +71,9 @@ importers:
 
   packages/types:
     dependencies:
+      '@nhcs/config':
+        specifier: workspace:*
+        version: link:../config
       zod:
         specifier: ^3.24.0
         version: 3.25.76

@@ -8,6 +8,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@nhcs/config": "workspace:*",
     "@nhcs/registries": "workspace:*",
     "@nhcs/types": "workspace:*",
     "@trpc/server": "^11.0.0",

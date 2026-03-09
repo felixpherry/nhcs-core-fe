@@ -7,6 +7,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@nhcs/config": "workspace:*"
+  },
   "devDependencies": {
     "typescript": "^5.7.0"
   }
