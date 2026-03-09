@@ -14,5 +14,6 @@
   },
   "dependencies": {
     "query-string": "^9.3.1"
-  }
+  },
+  "packageManager": "pnpm@10.30.3"
 }
