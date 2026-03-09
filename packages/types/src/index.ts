@@ -1,1 +1,7 @@
-export { createEnvelopeSchema, type BackendEnvelope } from './envelope';
+export {
+  createEnvelopeSchema,
+  createResultWrapperSchema,
+  type BackendEnvelope,
+  type ResultWrapper,
+  type Flag,
+} from './envelope';

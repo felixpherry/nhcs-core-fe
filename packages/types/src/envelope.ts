@@ -1,30 +1,58 @@
 import { z } from 'zod';
 
-export function createEnvelopeSchema<T extends z.ZodType>(dataSchema: T) {
+// Paginated wrapper — your backend wraps lists in { data: T[], count: number }
+export function createResultWrapperSchema<T extends z.ZodType>(itemSchema: T) {
+  return z.object({
+    data: z.array(itemSchema),
+    count: z.number().optional(),
+  });
+}
+
+// The top-level envelope — matches your .NET APIResponse<T>
+export function createEnvelopeSchema<T extends z.ZodType>(resultSchema: T) {
   return z.discriminatedUnion('isSuccess', [
-    // Happy path
     z.object({
       isSuccess: z.literal(true),
-      data: dataSchema,
-      message: z.string(),
+      isGranted: z.boolean().optional(),
+      result: resultSchema,
+      message: z.string().nullable(),
     }),
-    // Error path
     z.object({
       isSuccess: z.literal(false),
-      message: z.string(),
-      data: z.unknown().optional(),
-      errors: z
-        .array(z.object({ field: z.string(), message: z.string() }))
+      isGranted: z.boolean().optional(),
+      result: z.unknown().optional(),
+      message: z.string().nullable(),
+      error: z
+        .object({
+          info: z.string(),
+          version: z.string(),
+          date: z.string(),
+        })
+        .nullable()
         .optional(),
     }),
   ]);
 }
 
+// TypeScript-only types (for when you don't need runtime validation)
+export interface ResultWrapper<T> {
+  data: T[];
+  count?: number;
+}
+
 export type BackendEnvelope<T> =
-  | { isSuccess: true; data: T; message: string }
+  | {
+      isSuccess: true;
+      isGranted?: boolean;
+      result: T;
+      message: string | null;
+    }
   | {
       isSuccess: false;
-      message: string;
-      data?: unknown;
-      errors?: { field: string; message: string }[];
+      isGranted?: boolean;
+      result?: unknown;
+      message: string | null;
+      error?: { info: string; version: string; date: string } | null;
     };
+
+export type Flag = 'T' | 'F';
