@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { protectedProcedure, router, backendFetch, TRPCError } from '@nhcs/api';
 import { registerProcedure, getProcedureMeta } from '@nhcs/registries';
 import { createEnvelopeSchema, createResultWrapperSchema } from '@nhcs/types';
-import { companySchema, companyFilterSchema } from './company.schema';
+import { companySchema } from './company.schema';
 
 // ── Register procedure ──
 registerProcedure('company.list', {
@@ -28,16 +28,30 @@ const companyListEnvelope = createEnvelopeSchema(
 );
 
 // ── The input shape — what the frontend sends ──
+// ── The input shape — matches what the backend actually expects ──
 const companyListInput = z.object({
   page: z.number().min(1).default(1),
-  limit: z.number().min(1).max(500).default(10),
-  sort: z
-    .object({
-      field: z.string(),
-      direction: z.enum(['asc', 'desc']),
-    })
+  limit: z.number().min(1).max(100).default(10),
+  // Filter fields — flat, not nested
+  companyCode: z.string().nullable().optional(),
+  companyName: z.string().nullable().optional(),
+  companyGroupId: z.number().nullable().optional(),
+  address: z.string().nullable().optional(),
+  stateId: z.string().nullable().optional(),
+  cityId: z.string().nullable().optional(),
+  districtId: z.string().nullable().optional(),
+  subDistrictId: z.string().nullable().optional(),
+  isActive: z.enum(['T', 'F']).nullable().optional(),
+  companyAlias: z.string().nullable().optional(),
+  // Sorting
+  orderBys: z
+    .array(
+      z.object({
+        item1: z.string(), // column name
+        item2: z.boolean(), // true = ascending
+      }),
+    )
     .optional(),
-  filter: companyFilterSchema.optional(),
 });
 
 // ── The router ──
@@ -45,20 +59,18 @@ export const companyRouter = router({
   list: protectedProcedure
     .input(companyListInput)
     .query(async ({ ctx, input }) => {
+      const { page, limit, ...body } = input;
+
       const result = await backendFetch({
         method: 'POST',
-        path: `/company/sort/search?page=${input.page}&limit=${input.limit}`,
-        body: {
-          sort: input.sort ?? null,
-          filter: input.filter ?? null,
-        },
+        path: `/company/sort/search?page=${page}&limit=${limit}`,
+        body,
         headers: {
           Authorization: `Bearer ${ctx.accessToken}`,
         },
         meta: getProcedureMeta('company.list'),
       });
 
-      // Parse to validate the backend response shape
       const parsed = companyListEnvelope.parse(result);
 
       if (!parsed.isSuccess) {
