@@ -1,7 +1,7 @@
 import qs from 'query-string';
 import { z } from 'zod';
-import { protectedProcedure, router, TRPCError } from '../../trpc';
-import { backendFetch } from '../../backend-fetch';
+import { protectedProcedure, router, TRPCError } from '../../../trpc';
+import { backendFetch } from '../../../backend-fetch';
 import { registerProcedure, getProcedureMeta } from '@nhcs/registries';
 import { createEnvelopeSchema, createResultWrapperSchema } from '@nhcs/types';
 import { companySchema } from './company.schema';
