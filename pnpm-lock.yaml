@@ -26,6 +26,15 @@ importers:
       '@nhcs/types':
         specifier: workspace:*
         version: link:../types
+      '@trpc/server':
+        specifier: ^11.0.0
+        version: 11.12.0(typescript@5.9.3)
+      superjson:
+        specifier: ^2.2.0
+        version: 2.2.6
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
     devDependencies:
       typescript:
         specifier: ^5.7.0
@@ -49,8 +58,25 @@ importers:
 
 packages:
 
+  '@trpc/server@11.12.0':
+    resolution: {integrity: sha512-rpZnf5FUjNndE/AjGIy+FvEHR52iBd0u0wySqWCwXj67wraj3qCuBr5Opcf0Te/g67C/YztqceFkLoG0r4mp4Q==}
+    peerDependencies:
+      typescript: '>=5.7.2'
+
   '@types/node@25.3.5':
     resolution: {integrity: sha512-oX8xrhvpiyRCQkG1MFchB09f+cXftgIXb3a7UUa4Y3wpmZPw5tyZGTLWhlESOLq1Rq6oDlc8npVU2/9xiCuXMA==}
+
+  copy-anything@4.0.5:
+    resolution: {integrity: sha512-7Vv6asjS4gMOuILabD3l739tsaxFQmC+a7pLZm02zyvs8p977bL3zEgq3yDk5rn9B0PbYgIv++jmHcuUab4RhA==}
+    engines: {node: '>=18'}
+
+  is-what@5.5.0:
+    resolution: {integrity: sha512-oG7cgbmg5kLYae2N5IVd3jm2s+vldjxJzK1pcu9LfpGuQ93MQSzo0okvRna+7y5ifrD+20FE8FvjusyGaz14fw==}
+    engines: {node: '>=18'}
+
+  superjson@2.2.6:
+    resolution: {integrity: sha512-H+ue8Zo4vJmV2nRjpx86P35lzwDT3nItnIsocgumgr0hHMQ+ZGq5vrERg9kJBo5AWGmxZDhzDo+WVIJqkB0cGA==}
+    engines: {node: '>=16'}
 
   turbo-darwin-64@2.8.14:
     resolution: {integrity: sha512-9sFi7n2lLfEsGWi5OEoA/eTtQU2BPKtzSYKqufMtDeRmqMT9vKjbv9gJCRkllSVE9BOXA0qXC3diyX8V8rKIKw==}
@@ -99,9 +125,23 @@ packages:
 
 snapshots:
 
+  '@trpc/server@11.12.0(typescript@5.9.3)':
+    dependencies:
+      typescript: 5.9.3
+
   '@types/node@25.3.5':
     dependencies:
       undici-types: 7.18.2
+
+  copy-anything@4.0.5:
+    dependencies:
+      is-what: 5.5.0
+
+  is-what@5.5.0: {}
+
+  superjson@2.2.6:
+    dependencies:
+      copy-anything: 4.0.5
 
   turbo-darwin-64@2.8.14:
     optional: true
