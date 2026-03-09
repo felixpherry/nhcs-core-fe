@@ -3,6 +3,7 @@ import { protectedProcedure, router, backendFetch, TRPCError } from '@nhcs/api';
 import { registerProcedure, getProcedureMeta } from '@nhcs/registries';
 import { createEnvelopeSchema, createResultWrapperSchema } from '@nhcs/types';
 import { companySchema } from './company.schema';
+import qs from 'query-string';
 
 // ── Register procedure ──
 registerProcedure('company.list', {
@@ -63,7 +64,11 @@ export const companyRouter = router({
 
       const result = await backendFetch({
         method: 'POST',
-        path: `/company/sort/search?page=${page}&limit=${limit}`,
+        path: qs.stringifyUrl({
+          url: '/company/sort/search',
+          query: { page, limit },
+        }),
+
         body,
         headers: {
           Authorization: `Bearer ${ctx.accessToken}`,
@@ -90,7 +95,11 @@ export const companyRouter = router({
     .mutation(async ({ ctx, input }) => {
       const result = await backendFetch({
         method: 'POST',
-        path: `/company/changestatus?id=${input.id}&status=${input.status}`,
+        path: qs.stringifyUrl({
+          url: '/company/changestatus',
+          query: { id: input.id, status: input.status },
+        }),
+
         headers: {
           Authorization: `Bearer ${ctx.accessToken}`,
         },

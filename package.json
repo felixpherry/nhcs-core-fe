@@ -11,5 +11,8 @@
     "@types/node": "^25.3.5",
     "turbo": "^2.4.0",
     "typescript": "^5.7.0"
+  },
+  "dependencies": {
+    "query-string": "^9.3.1"
   }
 }
