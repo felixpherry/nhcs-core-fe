@@ -25,9 +25,7 @@ registerProcedure('company.remove', {
 });
 
 // ── What the backend returns for a company list ──
-const companyListEnvelope = createEnvelopeSchema(
-  createResultWrapperSchema(companySchema),
-);
+const companyListEnvelope = createEnvelopeSchema(createResultWrapperSchema(companySchema));
 
 // ── The input shape — what the frontend sends matches what the backend actually expects ──
 const companyListInput = z.object({
@@ -57,33 +55,31 @@ const companyListInput = z.object({
 
 // ── The router ──
 export const companyRouter = router({
-  list: protectedProcedure
-    .input(companyListInput)
-    .query(async ({ ctx, input }) => {
-      const { page, limit, ...body } = input;
+  list: protectedProcedure.input(companyListInput).query(async ({ ctx, input }) => {
+    const { page, limit, ...body } = input;
 
-      const result = await backendFetch({
-        method: 'POST',
-        path: qs.stringifyUrl({
-          url: '/company/sort/search',
-          query: { page, limit },
-        }),
+    const result = await backendFetch({
+      method: 'POST',
+      path: qs.stringifyUrl({
+        url: '/company/sort/search',
+        query: { page, limit },
+      }),
 
-        body,
-        headers: {
-          Authorization: `Bearer ${ctx.accessToken}`,
-        },
-        meta: getProcedureMeta('company.list'),
-      });
+      body,
+      headers: {
+        Authorization: `Bearer ${ctx.accessToken}`,
+      },
+      meta: getProcedureMeta('company.list'),
+    });
 
-      const parsed = companyListEnvelope.parse(result);
+    const parsed = companyListEnvelope.parse(result);
 
-      if (!parsed.isSuccess) {
-        throw new Error(parsed.message ?? 'Failed to fetch companies');
-      }
+    if (!parsed.isSuccess) {
+      throw new Error(parsed.message ?? 'Failed to fetch companies');
+    }
 
-      return parsed.result;
-    }),
+    return parsed.result;
+  }),
 
   changeStatus: protectedProcedure
     .input(

@@ -1,12 +1,6 @@
 export type ProcedureMode = 'proxy' | 'facade';
 
-export type ProcedureType =
-  | 'list'
-  | 'detail'
-  | 'mutation'
-  | 'command'
-  | 'export'
-  | 'config';
+export type ProcedureType = 'list' | 'detail' | 'mutation' | 'command' | 'export' | 'config';
 
 export type ProcedureCriticality = 'critical' | 'degradable';
 

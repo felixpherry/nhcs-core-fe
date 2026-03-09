@@ -13,9 +13,7 @@ interface BackendFetchOptions {
   meta: ProcedureMeta;
 }
 
-export async function backendFetch<T>(
-  options: BackendFetchOptions,
-): Promise<T> {
+export async function backendFetch<T>(options: BackendFetchOptions): Promise<T> {
   const policy = getPolicy(options.meta.requestClass);
   const correlationId = crypto.randomUUID();
   let lastError: unknown;
@@ -23,10 +21,7 @@ export async function backendFetch<T>(
   for (let attempt = 0; attempt <= policy.maxRetries; attempt++) {
     // Fresh AbortController per attempt
     const timeoutController = new AbortController();
-    const timeoutId = setTimeout(
-      () => timeoutController.abort(),
-      policy.timeout,
-    );
+    const timeoutId = setTimeout(() => timeoutController.abort(), policy.timeout);
 
     const signal = options.signal
       ? AbortSignal.any([options.signal, timeoutController.signal])
@@ -48,11 +43,7 @@ export async function backendFetch<T>(
 
       // 5xx — retryable
       if (res.status >= 500) {
-        lastError = new BackendError(
-          res.status,
-          await res.json().catch(() => ({})),
-          correlationId,
-        );
+        lastError = new BackendError(res.status, await res.json().catch(() => ({})), correlationId);
         if (attempt < policy.maxRetries) {
           await sleep(1000 * Math.pow(2, attempt));
           continue;
