@@ -40,6 +40,25 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
+  packages/features/master-setting:
+    dependencies:
+      '@nhcs/api':
+        specifier: workspace:*
+        version: link:../../api
+      '@nhcs/registries':
+        specifier: workspace:*
+        version: link:../../registries
+      '@nhcs/types':
+        specifier: workspace:*
+        version: link:../../types
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
+    devDependencies:
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
   packages/registries:
     devDependencies:
       typescript:
