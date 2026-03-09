@@ -1,8 +1,8 @@
 import { router } from './trpc';
-import { companyRouter } from './routers/master-setting';
+import { companyRouter } from './routers/organization-development';
 
 export const appRouter = router({
-  masterSetting: router({
+  organizationDevelopment: router({
     company: companyRouter,
   }),
 });

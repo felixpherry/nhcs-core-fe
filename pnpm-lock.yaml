@@ -24,9 +24,6 @@ importers:
 
   packages/api:
     dependencies:
-      '@nhcs/features-master-setting':
-        specifier: workspace:*
-        version: link:../features/master-setting
       '@nhcs/registries':
         specifier: workspace:*
         version: link:../registries
@@ -47,7 +44,7 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
-  packages/features/master-setting:
+  packages/features:
     devDependencies:
       typescript:
         specifier: ^5.7.0
