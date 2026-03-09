@@ -28,8 +28,7 @@ const companyListEnvelope = createEnvelopeSchema(
   createResultWrapperSchema(companySchema),
 );
 
-// ── The input shape — what the frontend sends ──
-// ── The input shape — matches what the backend actually expects ──
+// ── The input shape — what the frontend sends matches what the backend actually expects ──
 const companyListInput = z.object({
   page: z.number().min(1).default(1),
   limit: z.number().min(1).max(100).default(10),
