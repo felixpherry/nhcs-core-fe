@@ -7,12 +7,6 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "@nhcs/api": "workspace:*",
-    "@nhcs/registries": "workspace:*",
-    "@nhcs/types": "workspace:*",
-    "zod": "^3.24.0"
-  },
   "devDependencies": {
     "typescript": "^5.7.0"
   }

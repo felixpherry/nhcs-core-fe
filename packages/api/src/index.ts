@@ -1,4 +1,3 @@
-export { backendFetch } from './backend-fetch';
 export {
   BackendFetchError,
   BackendError,
@@ -16,3 +15,4 @@ export {
   protectedProcedure,
   TRPCError,
 } from './trpc';
+export { appRouter, type AppRouter } from './root';

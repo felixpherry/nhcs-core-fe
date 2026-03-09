@@ -10,6 +10,7 @@
   "dependencies": {
     "@nhcs/registries": "workspace:*",
     "@nhcs/types": "workspace:*",
+    "@nhcs/features-master-setting": "workspace:*",
     "@trpc/server": "^11.0.0",
     "superjson": "^2.2.0",
     "zod": "^3.24.0"
