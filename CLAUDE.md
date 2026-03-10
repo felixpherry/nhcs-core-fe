@@ -36,6 +36,8 @@ packages/
 8. **Backend fields are nullable** — always use `.nullable()` in Zod schemas.
 9. **`Flag` type** — backend uses `'T'` / `'F'` not booleans.
 10. **`query-string`** — use `stringifyUrl()` for URL building, installed at workspace root.
+11. **Auth headers** — backend expects `Authorization: Bearer {token}` + `user-id: {userId}_{accessId}_{userLevel}`.
+12. **Login/logout use publicProcedure** — auth routes don't require session context.
 
 ## Backend API Patterns
 
@@ -43,6 +45,9 @@ packages/
 - Change status: `POST /entity/changestatus?id=X&status=T|F`
 - Delete: `POST /entity/delete/{id}`
 - Sort body uses `orderBys: [{ item1: string, item2: boolean }]`
+- Login: `POST /authentication/login` with { userId, password, browser, browserVersion, ipAddress }
+- Logout: `POST /authentication/logout` with { accessId } + auth headers
+- Login returns: { token: { accessToken, accessId, refreshToken }, user: { userId, menus, menuGroups } }
 
 ## Conventions
 
@@ -58,7 +63,8 @@ The old Nuxt 2 codebase is at `NHCS_Core` repo on the same GitHub account.
 Always compare new implementations with the old system — check types, routing,
 business logic, and API shapes against the existing codebase.
 
-## Common Schemas
+## TODOs
 
-- `dataHistorySchema` — currently in master-setting, needs to move to `@nhcs/types` (TODO)
-- `orderBys` — needs to be extracted to `@nhcs/types` as shared schema (TODO)
+- Move dataHistorySchema to @nhcs/types (shared across all domains)
+- Extract orderBys to @nhcs/types as shared schema
+- Refactor auth header construction into tRPC context layer (so protectedProcedure auto-attaches headers)
