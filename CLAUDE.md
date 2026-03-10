@@ -16,6 +16,7 @@ packages/
 │       ├── errors.ts           # BackendError, TimeoutError, etc.
 │       ├── trpc/               # tRPC init, context, procedures
 │       ├── routers/            # All tRPC routers by domain
+│       │   ├── auth/           # Login, logout
 │       │   └── organization-development/
 │       │       └── company/
 │       └── root.ts             # appRouter combining all feature routers
@@ -45,9 +46,25 @@ packages/
 - Change status: `POST /entity/changestatus?id=X&status=T|F`
 - Delete: `POST /entity/delete/{id}`
 - Sort body uses `orderBys: [{ item1: string, item2: boolean }]`
-- Login: `POST /authentication/login` with { userId, password, browser, browserVersion, ipAddress }
-- Logout: `POST /authentication/logout` with { accessId } + auth headers
-- Login returns: { token: { accessToken, accessId, refreshToken }, user: { userId, menus, menuGroups } }
+- Login: `POST /authentication/api/auth/login` with { userId, password (AES encrypted), browser, browserVersion, ipAddress }
+- Logout: `POST /authentication/api/auth/logout` with { accessId } + auth headers
+- Login response is FLAT — no nested token/user objects. Fields: userId, userName, userLevel, accessToken, accessId, refreshToken, fgEss, fgCore, fgMss (not a menuGroups array)
+- Login envelope is FLAT — { statusCode, isSuccess, isGranted, result, message, error } — no outer result wrapper
+
+## Auth
+
+- Password is AES-CBC encrypted server-side using AUTH_SECRET env var before sending to backend
+- encryptPassword uses zero IV, PKCS7 padding, CryptoJS
+- Login/logout use publicProcedure (no session required)
+- Auth headers for authenticated calls: `Authorization: Bearer {token}` + `user-id: {userId}_{accessId}_{userLevel}`
+
+## Frontend Patterns
+
+- Forms: TanStack Form + Zod validation + shadcn Field components
+- tRPC client: httpBatchLink with superjson transformer
+- tRPC route handler: `apps/web/src/app/api/trpc/[trpc]/route.ts`
+- Provider: TRPCProvider wraps app in layout.tsx (QueryClient + trpc.Provider)
+- Pages are thin server components, forms/interactive stuff uses 'use client'
 
 ## Conventions
 
@@ -68,3 +85,5 @@ business logic, and API shapes against the existing codebase.
 - Move dataHistorySchema to @nhcs/types (shared across all domains)
 - Extract orderBys to @nhcs/types as shared schema
 - Refactor auth header construction into tRPC context layer (so protectedProcedure auto-attaches headers)
+- Refactor Field components for reusability across forms
+- Implement session management (store tokens after login)
