@@ -1,10 +1,10 @@
 import { z } from 'zod';
+import CryptoJS from 'crypto-js';
 import { publicProcedure, router } from '../../trpc';
 import { backendFetch } from '../../backend-fetch';
 import { registerProcedure, getProcedureMeta } from '@nhcs/registries';
 import { loginInputSchema, loginResponseSchema } from './auth.schema';
 
-// ── Register procedures ──
 registerProcedure('auth.login', {
   mode: 'proxy',
   type: 'command',
@@ -17,6 +17,15 @@ registerProcedure('auth.logout', {
   criticality: 'critical',
 });
 
+function encryptPassword(password: string): string {
+  const secret = process.env.AUTH_SECRET!;
+  return CryptoJS.AES.encrypt(password, CryptoJS.enc.Utf8.parse(secret), {
+    mode: CryptoJS.mode.CBC,
+    padding: CryptoJS.pad.Pkcs7,
+    iv: CryptoJS.lib.WordArray.create([0, 0, 0, 0], 16),
+  }).toString();
+}
+
 export const authRouter = router({
   login: publicProcedure.input(loginInputSchema).mutation(async ({ input }) => {
     const result = await backendFetch({
@@ -24,7 +33,7 @@ export const authRouter = router({
       path: '/authentication/login',
       body: {
         userId: input.userId.trim(),
-        password: input.password,
+        password: encryptPassword(input.password),
         browser: input.browser ?? null,
         browserVersion: input.browserVersion ?? null,
         ipAddress: input.ipAddress ?? null,
@@ -34,7 +43,6 @@ export const authRouter = router({
 
     const parsed = loginResponseSchema.parse(result);
 
-    // Check if it's an error response
     if ('errorCode' in parsed) {
       throw new Error(parsed.message);
     }
