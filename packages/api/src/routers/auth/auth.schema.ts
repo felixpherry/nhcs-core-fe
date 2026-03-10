@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+// ── Login input ──
 export const loginInputSchema = z.object({
   userId: z.string().min(4).max(100),
   password: z.string().min(1),
@@ -10,14 +11,7 @@ export const loginInputSchema = z.object({
 
 export type LoginInput = z.infer<typeof loginInputSchema>;
 
-export const tokenSchema = z.object({
-  accessToken: z.string().nullable(),
-  accessId: z.string().nullable(),
-  refreshToken: z.string().nullable(),
-  refExpiredDate: z.string().nullable(),
-});
-
-export type Token = z.infer<typeof tokenSchema>;
+// ── Feature / Permission ──
 export const featureSchema = z.object({
   featureId: z.number(),
   menuId: z.number(),
@@ -28,6 +22,7 @@ export const featureSchema = z.object({
   isGranted: z.boolean(),
 });
 
+// ── Menu (recursive) ──
 export interface Menu {
   menuId: number;
   menuCode: string;
@@ -57,37 +52,45 @@ export const menuSchema: z.ZodType<Menu> = baseMenuSchema.extend({
   menus: z.lazy(() => z.array(menuSchema)),
 });
 
-export const menuGroupSchema = z.enum(['ESS', 'MSS', 'CORE']);
-export type MenuGroup = z.infer<typeof menuGroupSchema>;
-
-export const authUserSchema = z.object({
+// ── Login result — flat, matches actual backend response ──
+export const loginResultDataSchema = z.object({
+  menus: z.array(menuSchema).nullable(),
   userId: z.string().nullable(),
   userName: z.string().nullable(),
   userLevel: z.string().nullable(),
   userGroup: z.string().nullable(),
-  userPicture: z.string().nullable(),
-  menus: z.array(menuSchema).nullable(),
-  menuGroups: z.array(menuGroupSchema),
+  isSuperior: z.boolean().nullable().optional(),
+  isEmployee: z.boolean().nullable().optional(),
+  fgEss: z.enum(['T', 'F']).nullable().optional(),
+  fgCore: z.enum(['T', 'F']).nullable().optional(),
+  fgMss: z.enum(['T', 'F']).nullable().optional(),
+  accessToken: z.string().nullable(),
+  accessId: z.string().nullable(),
+  refreshToken: z.string().nullable(),
+  refExpiredDate: z.string().nullable(),
+  isPkd: z.boolean().nullable().optional(),
 });
 
-export type AuthUser = z.infer<typeof authUserSchema>;
+export type LoginResultData = z.infer<typeof loginResultDataSchema>;
 
-export const loginResultSchema = z.object({
-  isSuccess: z.literal(true),
-  data: z.object({
-    token: tokenSchema,
-    user: authUserSchema,
+// ── Full login response envelope
+export const loginResponseSchema = z.discriminatedUnion('isSuccess', [
+  z.object({
+    statusCode: z.number(),
+    isSuccess: z.literal(true),
+    isGranted: z.boolean().optional(),
+    result: loginResultDataSchema,
+    message: z.string().nullable(),
+    error: z.unknown().nullable(),
   }),
-});
+  z.object({
+    statusCode: z.number().optional(),
+    isSuccess: z.literal(false),
+    isGranted: z.boolean().optional(),
+    result: z.unknown().nullable().optional(),
+    message: z.string().nullable(),
+    error: z.unknown().nullable(),
+  }),
+]);
 
-export const loginErrorSchema = z.object({
-  errorCode: z.string(),
-  isSuccess: z.literal(false),
-  message: z.string(),
-  timestamp: z.string(),
-});
-
-export const loginResponseSchema = z.union([loginResultSchema, loginErrorSchema]);
-
-export type LoginResult = z.infer<typeof loginResultSchema>;
-export type LoginError = z.infer<typeof loginErrorSchema>;
+export type LoginResponse = z.infer<typeof loginResponseSchema>;

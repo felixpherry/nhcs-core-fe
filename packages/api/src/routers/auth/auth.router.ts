@@ -28,9 +28,9 @@ function encryptPassword(password: string): string {
 
 export const authRouter = router({
   login: publicProcedure.input(loginInputSchema).mutation(async ({ input }) => {
-    const result = await backendFetch({
+    const raw = await backendFetch({
       method: 'POST',
-      path: '/authentication/login',
+      path: '/authentication/api/auth/login',
       body: {
         userId: input.userId.trim(),
         password: encryptPassword(input.password),
@@ -41,13 +41,13 @@ export const authRouter = router({
       meta: getProcedureMeta('auth.login'),
     });
 
-    const parsed = loginResponseSchema.parse(result);
+    const parsed = loginResponseSchema.parse(raw);
 
-    if ('errorCode' in parsed) {
-      throw new Error(parsed.message);
+    if (!parsed.isSuccess) {
+      throw new Error(parsed.message ?? 'Login failed');
     }
 
-    return parsed.data;
+    return parsed.result;
   }),
 
   logout: publicProcedure
@@ -62,7 +62,7 @@ export const authRouter = router({
     .mutation(async ({ input }) => {
       const result = await backendFetch({
         method: 'POST',
-        path: '/authentication/logout',
+        path: '/authentication/api/auth/logout',
         body: {
           accessId: input.accessId,
         },
