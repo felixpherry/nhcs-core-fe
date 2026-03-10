@@ -20,7 +20,7 @@ export { TRPCError };
 // Protected procedure — requires a valid session
 // Used for: everything else
 export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
-  if (!ctx.accessToken || !ctx.sessionId) {
+  if (!ctx.accessToken || !ctx.userId || !ctx.accessId || !ctx.userLevel) {
     throw new TRPCError({
       code: 'UNAUTHORIZED',
       message: 'Not authenticated',
