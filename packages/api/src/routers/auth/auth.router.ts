@@ -1,9 +1,9 @@
-import { z } from 'zod';
 import CryptoJS from 'crypto-js';
 import { publicProcedure, router } from '../../trpc';
 import { backendFetch } from '../../backend-fetch';
 import { registerProcedure, getProcedureMeta } from '@nhcs/registries';
 import { loginInputSchema, loginResponseSchema } from './auth.schema';
+import { createSession, destroySession } from '../../session-actions';
 
 registerProcedure('auth.login', {
   mode: 'proxy',
@@ -47,32 +47,18 @@ export const authRouter = router({
       throw new Error(parsed.message ?? 'Login failed');
     }
 
-    return parsed.result;
+    // Store in encrypted cookie
+    await createSession(parsed.result);
+
+    return {
+      userId: parsed.result.userId,
+      userName: parsed.result.userName,
+      userLevel: parsed.result.userLevel,
+    };
   }),
 
-  logout: publicProcedure
-    .input(
-      z.object({
-        accessToken: z.string(),
-        accessId: z.string(),
-        userId: z.string(),
-        userLevel: z.string(),
-      }),
-    )
-    .mutation(async ({ input }) => {
-      const result = await backendFetch({
-        method: 'POST',
-        path: '/authentication/api/auth/logout',
-        body: {
-          accessId: input.accessId,
-        },
-        headers: {
-          Authorization: `Bearer ${input.accessToken}`,
-          'user-id': `${input.userId}_${input.accessId}_${input.userLevel}`,
-        },
-        meta: getProcedureMeta('auth.logout'),
-      });
-
-      return result;
-    }),
+  logout: publicProcedure.mutation(async () => {
+    await destroySession();
+    return { success: true };
+  }),
 });

@@ -31,7 +31,14 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
   return next({
     ctx: {
       accessToken: ctx.accessToken,
-      sessionId: ctx.sessionId,
+      userId: ctx.userId,
+      accessId: ctx.accessId,
+      userLevel: ctx.userLevel,
+      // Build the auth headers once — every router can use ctx.authHeaders
+      authHeaders: {
+        Authorization: `Bearer ${ctx.accessToken}`,
+        'user-id': `${ctx.userId}_${ctx.accessId}_${ctx.userLevel}`,
+      },
     },
   });
 });

@@ -12,9 +12,13 @@
     "@nhcs/registries": "workspace:*",
     "@nhcs/types": "workspace:*",
     "@trpc/server": "^11.0.0",
+    "iron-session": "^8.0.4",
     "superjson": "^2.2.0"
   },
   "devDependencies": {
     "typescript": "^5.7.0"
+  },
+  "peerDependencies": {
+    "next": ">=15.0.0"
   }
 }

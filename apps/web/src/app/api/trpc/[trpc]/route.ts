@@ -6,11 +6,7 @@ function handler(req: Request) {
     endpoint: '/api/trpc',
     req,
     router: appRouter,
-    createContext: () =>
-      createContext({
-        accessToken: null,
-        sessionId: null,
-      }),
+    createContext,
   });
 }
 
