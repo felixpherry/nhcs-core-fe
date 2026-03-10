@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useForm } from '@tanstack/react-form';
 import { z } from 'zod';
+import { useRouter } from 'next/navigation';
+import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +21,18 @@ const loginSchema = z.object({
 export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  const loginMutation = trpc.auth.login.useMutation({
+    onSuccess: (data) => {
+      // TODO: store token in session, redirect to dashboard
+      console.log('Login success:', data);
+      router.push('/');
+    },
+    onError: (err) => {
+      setError(err.message);
+    },
+  });
 
   const form = useForm({
     defaultValues: {
@@ -30,9 +44,13 @@ export function LoginForm() {
     },
     onSubmit: async ({ value }) => {
       setError(null);
-
-      // TODO: wire to tRPC auth.login mutation
-      console.log('Login attempt:', value);
+      loginMutation.mutate({
+        userId: value.userId,
+        password: value.password,
+        browser: navigator.userAgent,
+        browserVersion: null,
+        ipAddress: null,
+      });
     },
   });
 
@@ -66,7 +84,7 @@ export function LoginForm() {
                       aria-invalid={isInvalid}
                       placeholder="Enter your User ID"
                       autoComplete="username"
-                      disabled={form.state.isSubmitting}
+                      disabled={loginMutation.isPending}
                     />
                     {isInvalid && <FieldError errors={field.state.meta.errors} />}
                   </Field>
@@ -91,7 +109,7 @@ export function LoginForm() {
                         onChange={(e) => field.handleChange(e.target.value)}
                         aria-invalid={isInvalid}
                         placeholder="Enter your password"
-                        disabled={form.state.isSubmitting}
+                        disabled={loginMutation.isPending}
                       />
                       <button
                         type="button"
@@ -110,8 +128,8 @@ export function LoginForm() {
 
           {error && <p className="text-sm text-destructive mt-4">{error}</p>}
 
-          <Button type="submit" className="w-full mt-6" disabled={form.state.isSubmitting}>
-            {form.state.isSubmitting ? 'Signing in...' : 'Sign In'}
+          <Button type="submit" className="w-full mt-6" disabled={loginMutation.isPending}>
+            {loginMutation.isPending ? 'Signing in...' : 'Sign In'}
           </Button>
         </form>
       </CardContent>
