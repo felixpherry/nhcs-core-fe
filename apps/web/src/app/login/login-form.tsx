@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useForm } from '@tanstack/react-form';
 import { z } from 'zod';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,12 +22,12 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const loginMutation = trpc.auth.login.useMutation({
-    onSuccess: (data) => {
-      // TODO: store token in session, redirect to dashboard
-      console.log('Login success:', data);
-      router.push('/');
+    onSuccess: () => {
+      const continueUrl = searchParams.get('continue') ?? '/';
+      router.push(continueUrl);
     },
     onError: (err) => {
       setError(err.message);
