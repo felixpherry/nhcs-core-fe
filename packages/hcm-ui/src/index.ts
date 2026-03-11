@@ -84,6 +84,18 @@ export {
   NumberCell,
 } from './components/data-table';
 
+// FilterPanel system
+export {
+  FilterPanel,
+  FilterPanelFields,
+  FilterPanelActions,
+  FilterPanelFieldToggle,
+  type FilterPanelProps,
+  type FilterPanelFieldsProps,
+  type FilterPanelActionsProps,
+  type FilterPanelFieldToggleProps,
+} from './components/filter-panel';
+
 // Utilities
 export { cn } from './lib/utils';
 
