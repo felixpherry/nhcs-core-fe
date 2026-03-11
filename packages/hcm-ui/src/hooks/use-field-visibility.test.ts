@@ -17,6 +17,7 @@ describe('useFieldVisibility', () => {
       );
 
       expect(result.current.visibleCount).toBe(4);
+      expect(result.current.totalCount).toBe(4);
       expect(result.current.areAllVisible).toBe(true);
       expect(result.current.areNoneVisible).toBe(false);
     });
@@ -31,6 +32,7 @@ describe('useFieldVisibility', () => {
       );
 
       expect(result.current.visibleCount).toBe(2);
+      expect(result.current.totalCount).toBe(4);
       expect(result.current.isVisible('company')).toBe(true);
       expect(result.current.isVisible('status')).toBe(true);
       expect(result.current.isVisible('location')).toBe(false);
@@ -273,6 +275,38 @@ describe('useFieldVisibility', () => {
 
       act(() => result.current.hideAll());
       expect(save).toHaveBeenCalledWith('test', []);
+    });
+  });
+
+  // ── totalCount ──
+
+  describe('totalCount', () => {
+    it('returns the total number of available fields', () => {
+      const { result } = renderHook(() =>
+        useFieldVisibility({
+          scopeKey: 'test',
+          allFieldIds: ALL_FIELDS,
+        }),
+      );
+
+      expect(result.current.totalCount).toBe(4);
+    });
+
+    it('remains stable regardless of visibility changes', () => {
+      const { result } = renderHook(() =>
+        useFieldVisibility({
+          scopeKey: 'test',
+          allFieldIds: ALL_FIELDS,
+        }),
+      );
+
+      act(() => result.current.hideAll());
+      expect(result.current.totalCount).toBe(4);
+      expect(result.current.visibleCount).toBe(0);
+
+      act(() => result.current.showAll());
+      expect(result.current.totalCount).toBe(4);
+      expect(result.current.visibleCount).toBe(4);
     });
   });
 });
