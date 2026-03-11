@@ -87,3 +87,13 @@ business logic, and API shapes against the existing codebase.
 - Refactor auth header construction into tRPC context layer (so protectedProcedure auto-attaches headers)
 - Refactor Field components for reusability across forms
 - Implement session management (store tokens after login)
+
+## Testing Strategy
+
+- Testing Trophy (Kent C. Dodds): mostly integration, some unit, few E2E
+- Tools: Vitest + @testing-library/react + MSW (unit/integration), Playwright (E2E)
+- Tests are co-located: `useSelection.ts` → `useSelection.test.ts` (same folder)
+- Test in parallel: every hook/component gets tests built alongside it, not after
+- Mock only network boundaries (MSW for tRPC). Never mock child components. Never shallow render.
+- Coverage targets: ~90% hooks, ~95% utilities, ~70% components, ~80% routers, ~50% pages
+- CI: lint → typecheck → vitest → playwright
