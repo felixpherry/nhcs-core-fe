@@ -36,5 +36,20 @@ export {
   type CustomFieldRenderProps,
 } from './components/form-field';
 
+// Form builder
+export {
+  FormBuilder,
+  type FormBuilderProps,
+  type FormNode,
+  type FieldNode,
+  type SectionNode,
+  type GridNode,
+  type GroupNode,
+  type DividerNode,
+  type CardNode,
+  type CustomNode,
+  type FormBuilderContext,
+} from './components/form-builder';
+
 // Utilities
 export { cn } from './lib/utils';
