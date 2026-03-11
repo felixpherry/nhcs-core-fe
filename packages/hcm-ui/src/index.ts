@@ -16,5 +16,25 @@ export { useFilter, type UseFilterOptions, type UseFilterReturn } from './hooks/
 // UI primitives
 export * from './components/ui';
 
+// Form system
+export {
+  FormField,
+  type FormFieldProps,
+  type FieldType,
+  type FieldOption,
+  type FormFieldConfig,
+  type FormFieldConfigBase,
+  type TextFieldConfig,
+  type NumberFieldConfig,
+  type SelectFieldConfig,
+  type AsyncComboboxFieldConfig,
+  type CheckboxFieldConfig,
+  type SwitchFieldConfig,
+  type TextareaFieldConfig,
+  type DateFieldConfig,
+  type CustomFieldConfig,
+  type CustomFieldRenderProps,
+} from './components/form-field';
+
 // Utilities
 export { cn } from './lib/utils';
