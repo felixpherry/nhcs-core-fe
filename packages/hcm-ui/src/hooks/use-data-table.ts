@@ -182,14 +182,16 @@ export function useDataTable<TData>(
   }, []);
 
   // ── Selection ──
-  const selectionHook = selectionOptions
-    ? useSelection({
-        mode: selectionOptions.mode ?? 'multi',
-        initialKeys: selectionOptions.initialKeys,
-        required: selectionOptions.required,
-        onSelectionChange: selectionOptions.onSelectionChange,
-      })
-    : null;
+  // Always call the hook to satisfy Rules of Hooks (no conditional hook calls).
+  // Gate the return value instead — consumers see `selection: null` when not configured.
+  const selectionHook = useSelection({
+    mode: selectionOptions?.mode ?? 'multi',
+    initialKeys: selectionOptions?.initialKeys,
+    required: selectionOptions?.required,
+    onSelectionChange: selectionOptions?.onSelectionChange,
+  });
+
+  const selection = selectionOptions ? selectionHook : null;
 
   // ── Query state (for building tRPC input) ──
   const queryState = useMemo(
@@ -237,7 +239,7 @@ export function useDataTable<TData>(
     columnVisibility,
     toggleColumnVisibility,
 
-    selection: selectionHook,
+    selection,
 
     columns,
     getRowId,
