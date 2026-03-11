@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useReducer, useCallback, useMemo, useRef } from 'react';
 
 // ── Types ──
 
@@ -70,6 +70,122 @@ function isEqual(a: unknown, b: unknown): boolean {
   return aKeys.every((key) => isEqual(aObj[key], bObj[key]));
 }
 
+// ── Reducer ──
+
+interface CrudFormState<TForm> {
+  isOpen: boolean;
+  mode: FormMode;
+  values: TForm;
+  initialValues: TForm;
+  editId: string | null;
+  isLoading: boolean;
+}
+
+type CrudFormAction<TForm> =
+  | { type: 'OPEN_CREATE'; defaultValues: TForm }
+  | { type: 'OPEN_EDIT'; id: string; data: TForm }
+  | { type: 'OPEN_EDIT_BY_ID_START'; id: string; defaultValues: TForm }
+  | { type: 'OPEN_EDIT_BY_ID_SUCCESS'; values: TForm }
+  | { type: 'OPEN_EDIT_BY_ID_ERROR' }
+  | { type: 'OPEN_VIEW'; id: string; data: TForm }
+  | { type: 'SET_FIELD_VALUE'; key: string; value: unknown }
+  | { type: 'SET_VALUES'; values: TForm }
+  | { type: 'RESET' }
+  | { type: 'CLOSE' };
+
+function crudFormReducer<TForm>(
+  state: CrudFormState<TForm>,
+  action: CrudFormAction<TForm>,
+): CrudFormState<TForm> {
+  switch (action.type) {
+    case 'OPEN_CREATE':
+      return {
+        ...state,
+        isOpen: true,
+        mode: 'create',
+        values: { ...action.defaultValues },
+        initialValues: { ...action.defaultValues },
+        editId: null,
+        isLoading: false,
+      };
+
+    case 'OPEN_EDIT':
+      return {
+        ...state,
+        isOpen: true,
+        mode: 'edit',
+        values: { ...action.data },
+        initialValues: { ...action.data },
+        editId: action.id,
+        isLoading: false,
+      };
+
+    case 'OPEN_EDIT_BY_ID_START':
+      // §7.3: Hard-reset to defaults immediately while loading
+      return {
+        ...state,
+        isOpen: true,
+        mode: 'edit',
+        values: { ...action.defaultValues },
+        initialValues: { ...action.defaultValues },
+        editId: action.id,
+        isLoading: true,
+      };
+
+    case 'OPEN_EDIT_BY_ID_SUCCESS':
+      return {
+        ...state,
+        values: { ...action.values },
+        initialValues: { ...action.values },
+        isLoading: false,
+      };
+
+    case 'OPEN_EDIT_BY_ID_ERROR':
+      return {
+        ...state,
+        isLoading: false,
+      };
+
+    case 'OPEN_VIEW':
+      return {
+        ...state,
+        isOpen: true,
+        mode: 'view',
+        values: { ...action.data },
+        initialValues: { ...action.data },
+        editId: action.id,
+        isLoading: false,
+      };
+
+    case 'SET_FIELD_VALUE':
+      return {
+        ...state,
+        values: { ...state.values, [action.key]: action.value },
+      };
+
+    case 'SET_VALUES':
+      return {
+        ...state,
+        values: { ...action.values },
+      };
+
+    case 'RESET':
+      return {
+        ...state,
+        values: { ...state.initialValues },
+      };
+
+    case 'CLOSE':
+      return {
+        ...state,
+        isOpen: false,
+      };
+
+    default:
+      return state;
+  }
+}
+
 // ── Hook ──
 
 export function useCrudForm<TForm extends Record<string, unknown>, TData = unknown>(
@@ -77,50 +193,44 @@ export function useCrudForm<TForm extends Record<string, unknown>, TData = unkno
 ): UseCrudFormReturn<TForm> {
   const { defaultValues, transformForEdit, loadForEdit } = options;
 
-  const [isOpen, setIsOpen] = useState(false);
-  const [mode, setMode] = useState<FormMode>('create');
-  const [values, setValuesState] = useState<TForm>(() => ({ ...defaultValues }));
-  const [editId, setEditId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [state, dispatch] = useReducer(crudFormReducer<TForm>, {
+    isOpen: false,
+    mode: 'create' as FormMode,
+    values: { ...defaultValues },
+    initialValues: { ...defaultValues },
+    editId: null,
+    isLoading: false,
+  });
 
-  // Track initial values to compute isDirty
-  const initialValues = useRef<TForm>({ ...defaultValues });
+  // Stale request guard for openEditById race condition (§7.3)
+  const requestIdRef = useRef(0);
 
-  const isDirty = useMemo(() => !isEqual(values, initialValues.current), [values]);
+  const isDirty = useMemo(() => !isEqual(state.values, state.initialValues), [state.values, state.initialValues]);
 
   const canClose = !isDirty;
 
   // ── Field operations ──
 
   const setFieldValue = useCallback(<K extends keyof TForm>(key: K, value: TForm[K]) => {
-    setValuesState((prev) => ({ ...prev, [key]: value }));
+    dispatch({ type: 'SET_FIELD_VALUE', key: key as string, value });
   }, []);
 
   const setValues = useCallback((newValues: TForm) => {
-    setValuesState({ ...newValues });
+    dispatch({ type: 'SET_VALUES', values: newValues });
   }, []);
 
   const reset = useCallback(() => {
-    setValuesState({ ...initialValues.current });
+    dispatch({ type: 'RESET' });
   }, []);
 
   // ── Open operations ──
 
   const openCreate = useCallback(() => {
-    const vals = { ...defaultValues };
-    initialValues.current = vals;
-    setValuesState(vals);
-    setMode('create');
-    setEditId(null);
-    setIsOpen(true);
+    dispatch({ type: 'OPEN_CREATE', defaultValues });
   }, [defaultValues]);
 
   const openEdit = useCallback((id: string, data: TForm) => {
-    initialValues.current = { ...data };
-    setValuesState({ ...data });
-    setMode('edit');
-    setEditId(id);
-    setIsOpen(true);
+    dispatch({ type: 'OPEN_EDIT', id, data });
   }, []);
 
   const openEditById = useCallback(
@@ -129,29 +239,33 @@ export function useCrudForm<TForm extends Record<string, unknown>, TData = unkno
         throw new Error('loadForEdit not provided');
       }
 
-      setIsLoading(true);
-      setMode('edit');
-      setEditId(id);
-      setIsOpen(true);
+      // Increment request counter — any earlier in-flight request becomes stale
+      const thisRequest = ++requestIdRef.current;
+
+      // §7.3: Hard-reset to defaults immediately while loading
+      dispatch({ type: 'OPEN_EDIT_BY_ID_START', id, defaultValues });
 
       try {
         const data = await loadForEdit(id);
+
+        // Discard if a newer request has been made
+        if (thisRequest !== requestIdRef.current) return;
+
         const formValues = transformForEdit ? transformForEdit(data) : (data as unknown as TForm);
-        initialValues.current = { ...formValues };
-        setValuesState({ ...formValues });
-      } finally {
-        setIsLoading(false);
+        dispatch({ type: 'OPEN_EDIT_BY_ID_SUCCESS', values: formValues });
+      } catch (error) {
+        // Only handle error if this is still the active request
+        if (thisRequest === requestIdRef.current) {
+          dispatch({ type: 'OPEN_EDIT_BY_ID_ERROR' });
+        }
+        throw error;
       }
     },
-    [loadForEdit, transformForEdit],
+    [defaultValues, loadForEdit, transformForEdit],
   );
 
   const openView = useCallback((id: string, data: TForm) => {
-    initialValues.current = { ...data };
-    setValuesState({ ...data });
-    setMode('view');
-    setEditId(id);
-    setIsOpen(true);
+    dispatch({ type: 'OPEN_VIEW', id, data });
   }, []);
 
   // ── Close operations ──
@@ -160,21 +274,21 @@ export function useCrudForm<TForm extends Record<string, unknown>, TData = unkno
     if (isDirty) {
       return false; // Caller should show confirmation dialog
     }
-    setIsOpen(false);
+    dispatch({ type: 'CLOSE' });
     return true;
   }, [isDirty]);
 
   const forceClose = useCallback(() => {
-    setIsOpen(false);
+    dispatch({ type: 'CLOSE' });
   }, []);
 
   return {
-    isOpen,
-    mode,
-    values,
-    editId,
+    isOpen: state.isOpen,
+    mode: state.mode,
+    values: state.values,
+    editId: state.editId,
     isDirty,
-    isLoading,
+    isLoading: state.isLoading,
     setFieldValue,
     setValues,
     openCreate,
