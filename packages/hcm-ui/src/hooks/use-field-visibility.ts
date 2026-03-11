@@ -36,6 +36,8 @@ export interface UseFieldVisibilityReturn {
   areAllVisible: boolean;
   areNoneVisible: boolean;
   visibleCount: number;
+  /** Total number of available fields */
+  totalCount: number;
 }
 
 // ── Hook ──
@@ -108,6 +110,7 @@ export function useFieldVisibility(options: UseFieldVisibilityOptions): UseField
   const areAllVisible = visibleIds.size === allFieldIds.length;
   const areNoneVisible = visibleIds.size === 0;
   const visibleCount = visibleIds.size;
+  const totalCount = allFieldIds.length;
 
   return {
     visibleIds,
@@ -119,5 +122,6 @@ export function useFieldVisibility(options: UseFieldVisibilityOptions): UseField
     areAllVisible,
     areNoneVisible,
     visibleCount,
+    totalCount,
   };
 }
