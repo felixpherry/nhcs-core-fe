@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     globals: true,
     css: false,
+    passWithNoTests: true,
     reporters: ['verbose'],
     coverage: {
       provider: 'v8',
