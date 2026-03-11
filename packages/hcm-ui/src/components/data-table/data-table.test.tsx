@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { renderHook } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import {
   DataTable,
   DataTablePagination,
@@ -9,7 +9,7 @@ import {
   DataTableSearch,
   DataTableActions,
 } from './data-table';
-import { useDataTable } from '../../hooks/use-data-table';
+import { useDataTable, type UseDataTableOptions } from '../../hooks/use-data-table';
 import { createColumns } from './column-types';
 
 interface Company {
@@ -31,16 +31,41 @@ const SAMPLE_DATA: Company[] = [
   { companyId: 3, companyCode: 'TST', companyName: 'Test Co', isActive: 'T' },
 ];
 
-// Helper to create a table hook result
-function useTestTable(overrides?: Partial<Parameters<typeof useDataTable<Company>>[0]>) {
-  return useDataTable<Company>({
-    columns: COLUMNS,
-    getRowId: (row) => String(row.companyId),
-    data: SAMPLE_DATA,
-    totalCount: 25,
-    isLoading: false,
-    ...overrides,
+// Helper to create a seeded table hook result
+function renderSeededTable(overrides?: {
+  data?: Company[];
+  totalCount?: number;
+  isLoading?: boolean;
+  isFetching?: boolean;
+  selection?: UseDataTableOptions<Company>['selection'];
+  defaultPageSize?: number;
+  columns?: UseDataTableOptions<Company>['columns'];
+}) {
+  const {
+    data = SAMPLE_DATA,
+    totalCount = 25,
+    isLoading = false,
+    isFetching = false,
+    selection,
+    defaultPageSize,
+    columns = COLUMNS,
+  } = overrides ?? {};
+
+  const hookResult = renderHook(() =>
+    useDataTable<Company>({
+      columns,
+      getRowId: (row) => String(row.companyId),
+      ...(selection ? { selection } : {}),
+      ...(defaultPageSize ? { defaultPageSize } : {}),
+    }),
+  );
+
+  act(() => {
+    hookResult.result.current._setData(data, totalCount);
+    hookResult.result.current._setLoading(isLoading, isFetching);
   });
+
+  return hookResult;
 }
 
 describe('DataTable', () => {
@@ -48,7 +73,7 @@ describe('DataTable', () => {
 
   describe('rendering', () => {
     it('renders table headers', () => {
-      const { result } = renderHook(() => useTestTable());
+      const { result } = renderSeededTable();
 
       render(<DataTable table={result.current} />);
 
@@ -58,7 +83,7 @@ describe('DataTable', () => {
     });
 
     it('renders table rows', () => {
-      const { result } = renderHook(() => useTestTable());
+      const { result } = renderSeededTable();
 
       render(<DataTable table={result.current} />);
 
@@ -69,7 +94,7 @@ describe('DataTable', () => {
     });
 
     it('renders status badges', () => {
-      const { result } = renderHook(() => useTestTable());
+      const { result } = renderSeededTable();
 
       render(<DataTable table={result.current} />);
 
@@ -80,7 +105,7 @@ describe('DataTable', () => {
     });
 
     it('shows loading state', () => {
-      const { result } = renderHook(() => useTestTable({ isLoading: true }));
+      const { result } = renderSeededTable({ isLoading: true });
 
       render(<DataTable table={result.current} />);
 
@@ -89,7 +114,7 @@ describe('DataTable', () => {
     });
 
     it('shows empty state', () => {
-      const { result } = renderHook(() => useTestTable({ data: [], totalCount: 0 }));
+      const { result } = renderSeededTable({ data: [], totalCount: 0 });
 
       render(<DataTable table={result.current} />);
 
@@ -103,7 +128,7 @@ describe('DataTable', () => {
     it('calls onRowClick with row data', async () => {
       const user = userEvent.setup();
       const onRowClick = vi.fn();
-      const { result } = renderHook(() => useTestTable());
+      const { result } = renderSeededTable();
 
       render(<DataTable table={result.current} onRowClick={onRowClick} />);
 
@@ -116,7 +141,7 @@ describe('DataTable', () => {
 
   describe('selection', () => {
     it('renders checkboxes when selection is enabled', () => {
-      const { result } = renderHook(() => useTestTable({ selection: { mode: 'multi' } }));
+      const { result } = renderSeededTable({ selection: { mode: 'multi' } });
 
       render(<DataTable table={result.current} />);
 
@@ -126,7 +151,7 @@ describe('DataTable', () => {
     });
 
     it('does not render checkboxes when selection is disabled', () => {
-      const { result } = renderHook(() => useTestTable());
+      const { result } = renderSeededTable();
 
       render(<DataTable table={result.current} />);
 
@@ -135,7 +160,7 @@ describe('DataTable', () => {
 
     it('clicking row checkbox toggles selection', async () => {
       const user = userEvent.setup();
-      const { result } = renderHook(() => useTestTable({ selection: { mode: 'multi' } }));
+      const { result } = renderSeededTable({ selection: { mode: 'multi' } });
 
       render(<DataTable table={result.current} />);
 
@@ -148,7 +173,7 @@ describe('DataTable', () => {
 
     it('clicking header checkbox toggles all', async () => {
       const user = userEvent.setup();
-      const { result } = renderHook(() => useTestTable({ selection: { mode: 'multi' } }));
+      const { result } = renderSeededTable({ selection: { mode: 'multi' } });
 
       render(<DataTable table={result.current} />);
 
@@ -166,7 +191,7 @@ describe('DataTable', () => {
 
   describe('sorting', () => {
     it('sortable columns show cursor pointer', () => {
-      const { result } = renderHook(() => useTestTable());
+      const { result } = renderSeededTable();
 
       render(<DataTable table={result.current} />);
 
@@ -175,7 +200,7 @@ describe('DataTable', () => {
     });
 
     it('non-sortable columns do not show cursor', () => {
-      const { result } = renderHook(() => useTestTable());
+      const { result } = renderSeededTable();
 
       render(<DataTable table={result.current} />);
 
@@ -185,7 +210,7 @@ describe('DataTable', () => {
 
     it('clicking sortable header triggers sort', async () => {
       const user = userEvent.setup();
-      const { result } = renderHook(() => useTestTable());
+      const { result } = renderSeededTable();
 
       render(<DataTable table={result.current} />);
 
@@ -198,7 +223,7 @@ describe('DataTable', () => {
 
   describe('children', () => {
     it('renders children above the table', () => {
-      const { result } = renderHook(() => useTestTable());
+      const { result } = renderSeededTable();
 
       render(
         <DataTable table={result.current}>
@@ -214,7 +239,7 @@ describe('DataTable', () => {
 
 describe('DataTablePagination', () => {
   it('shows correct range text', () => {
-    const { result } = renderHook(() => useTestTable());
+    const { result } = renderSeededTable();
 
     render(<DataTablePagination table={result.current} />);
 
@@ -222,7 +247,7 @@ describe('DataTablePagination', () => {
   });
 
   it('shows page info', () => {
-    const { result } = renderHook(() => useTestTable());
+    const { result } = renderSeededTable();
 
     render(<DataTablePagination table={result.current} />);
 
@@ -231,7 +256,7 @@ describe('DataTablePagination', () => {
 
   it('navigates to next page', async () => {
     const user = userEvent.setup();
-    const { result } = renderHook(() => useTestTable());
+    const { result } = renderSeededTable();
 
     render(<DataTablePagination table={result.current} />);
 
@@ -240,7 +265,7 @@ describe('DataTablePagination', () => {
   });
 
   it('disables previous on first page', () => {
-    const { result } = renderHook(() => useTestTable());
+    const { result } = renderSeededTable();
 
     render(<DataTablePagination table={result.current} />);
 
@@ -249,7 +274,7 @@ describe('DataTablePagination', () => {
   });
 
   it('shows no results when empty', () => {
-    const { result } = renderHook(() => useTestTable({ data: [], totalCount: 0 }));
+    const { result } = renderSeededTable({ data: [], totalCount: 0 });
 
     render(<DataTablePagination table={result.current} />);
 

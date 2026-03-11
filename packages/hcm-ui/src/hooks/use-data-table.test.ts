@@ -26,70 +26,95 @@ function defaultOptions() {
   return {
     columns: COLUMNS,
     getRowId: (row: Company) => String(row.companyId),
-    data: SAMPLE_DATA,
-    totalCount: 25,
-    isLoading: false,
   };
 }
 
+/** Helper: render the hook and seed it with data + loading state */
+function renderSeededTable(
+  overrides?: Partial<Parameters<typeof useDataTable<Company>>[0]> & {
+    data?: Company[];
+    totalCount?: number;
+    isLoading?: boolean;
+    isFetching?: boolean;
+  },
+) {
+  const { data, totalCount, isLoading, isFetching, ...hookOptions } = {
+    data: SAMPLE_DATA,
+    totalCount: 25,
+    isLoading: false,
+    isFetching: false,
+    ...overrides,
+  };
+
+  const result = renderHook(() => useDataTable<Company>({ ...defaultOptions(), ...hookOptions }));
+
+  // Seed data into the hook
+  act(() => {
+    result.result.current._setData(data, totalCount);
+    result.result.current._setLoading(isLoading, isFetching);
+  });
+
+  return result;
+}
+
 describe('useDataTable', () => {
-  // ── Initial state ──
+  // ── Initial state (before seeding) ──
 
   describe('initial state', () => {
-    it('starts with correct defaults', () => {
+    it('starts with loading=true and empty data before _setData/_setLoading', () => {
       const { result } = renderHook(() => useDataTable(defaultOptions()));
 
       expect(result.current.page).toBe(1);
       expect(result.current.pageSize).toBe(10);
+      expect(result.current.data).toEqual([]);
+      expect(result.current.totalCount).toBe(0);
+      expect(result.current.isLoading).toBe(true);
+      expect(result.current.isFetching).toBe(false);
+      expect(result.current.isEmpty).toBe(false); // isLoading=true so isEmpty=false
+      expect(result.current.sorting).toEqual([]);
+      expect(result.current.selection).toBeNull();
+    });
+
+    it('reflects data after _setData and _setLoading', () => {
+      const { result } = renderSeededTable();
+
       expect(result.current.data).toEqual(SAMPLE_DATA);
       expect(result.current.totalCount).toBe(25);
       expect(result.current.isLoading).toBe(false);
       expect(result.current.isFetching).toBe(false);
       expect(result.current.isEmpty).toBe(false);
-      expect(result.current.sorting).toEqual([]);
-      expect(result.current.selection).toBeNull();
     });
 
     it('respects custom defaultPageSize', () => {
-      const { result } = renderHook(() =>
-        useDataTable({ ...defaultOptions(), defaultPageSize: 25 }),
-      );
+      const { result } = renderSeededTable({ defaultPageSize: 25 });
 
       expect(result.current.pageSize).toBe(25);
     });
 
     it('respects defaultSorting', () => {
-      const { result } = renderHook(() =>
-        useDataTable({
-          ...defaultOptions(),
-          defaultSorting: [{ id: 'code', desc: false }],
-        }),
-      );
+      const { result } = renderSeededTable({
+        defaultSorting: [{ id: 'code', desc: false }],
+      });
 
       expect(result.current.sorting).toEqual([{ id: 'code', desc: false }]);
     });
 
     it('isEmpty is true when data is empty and not loading', () => {
-      const { result } = renderHook(() =>
-        useDataTable({
-          ...defaultOptions(),
-          data: [],
-          totalCount: 0,
-        }),
-      );
+      const { result } = renderSeededTable({
+        data: [],
+        totalCount: 0,
+        isLoading: false,
+      });
 
       expect(result.current.isEmpty).toBe(true);
     });
 
     it('isEmpty is false when loading', () => {
-      const { result } = renderHook(() =>
-        useDataTable({
-          ...defaultOptions(),
-          data: [],
-          totalCount: 0,
-          isLoading: true,
-        }),
-      );
+      const { result } = renderSeededTable({
+        data: [],
+        totalCount: 0,
+        isLoading: true,
+      });
 
       expect(result.current.isEmpty).toBe(false);
     });
@@ -99,21 +124,21 @@ describe('useDataTable', () => {
 
   describe('pagination', () => {
     it('calculates pageCount correctly', () => {
-      const { result } = renderHook(() => useDataTable(defaultOptions()));
+      const { result } = renderSeededTable();
 
       // 25 items / 10 per page = 3 pages
       expect(result.current.pageCount).toBe(3);
     });
 
     it('setPage changes the page', () => {
-      const { result } = renderHook(() => useDataTable(defaultOptions()));
+      const { result } = renderSeededTable();
 
       act(() => result.current.setPage(2));
       expect(result.current.page).toBe(2);
     });
 
     it('setPage clamps to valid range', () => {
-      const { result } = renderHook(() => useDataTable(defaultOptions()));
+      const { result } = renderSeededTable();
 
       act(() => result.current.setPage(999));
       expect(result.current.page).toBe(3); // max page
@@ -123,7 +148,7 @@ describe('useDataTable', () => {
     });
 
     it('nextPage and previousPage work', () => {
-      const { result } = renderHook(() => useDataTable(defaultOptions()));
+      const { result } = renderSeededTable();
 
       act(() => result.current.nextPage());
       expect(result.current.page).toBe(2);
@@ -133,14 +158,14 @@ describe('useDataTable', () => {
     });
 
     it('previousPage does not go below 1', () => {
-      const { result } = renderHook(() => useDataTable(defaultOptions()));
+      const { result } = renderSeededTable();
 
       act(() => result.current.previousPage());
       expect(result.current.page).toBe(1);
     });
 
     it('nextPage does not go above pageCount', () => {
-      const { result } = renderHook(() => useDataTable(defaultOptions()));
+      const { result } = renderSeededTable();
 
       act(() => result.current.setPage(3));
       act(() => result.current.nextPage());
@@ -148,7 +173,7 @@ describe('useDataTable', () => {
     });
 
     it('canPreviousPage and canNextPage are correct', () => {
-      const { result } = renderHook(() => useDataTable(defaultOptions()));
+      const { result } = renderSeededTable();
 
       expect(result.current.canPreviousPage).toBe(false);
       expect(result.current.canNextPage).toBe(true);
@@ -163,7 +188,7 @@ describe('useDataTable', () => {
     });
 
     it('setPageSize resets to page 1', () => {
-      const { result } = renderHook(() => useDataTable(defaultOptions()));
+      const { result } = renderSeededTable();
 
       act(() => result.current.setPage(3));
       expect(result.current.page).toBe(3);
@@ -174,7 +199,7 @@ describe('useDataTable', () => {
     });
 
     it('pageSizeOptions defaults to [10, 25, 50, 100]', () => {
-      const { result } = renderHook(() => useDataTable(defaultOptions()));
+      const { result } = renderSeededTable();
 
       expect(result.current.pageSizeOptions).toEqual([10, 25, 50, 100]);
     });
@@ -184,30 +209,27 @@ describe('useDataTable', () => {
 
   describe('sorting', () => {
     it('toggleSort adds ascending sort', () => {
-      const { result } = renderHook(() => useDataTable(defaultOptions()));
+      const { result } = renderSeededTable();
 
       act(() => result.current.toggleSort('code'));
       expect(result.current.sorting).toEqual([{ id: 'code', desc: false }]);
     });
 
     it('toggleSort cycles: asc → desc → none', () => {
-      const { result } = renderHook(() => useDataTable(defaultOptions()));
+      const { result } = renderSeededTable();
 
-      // Click 1: ascending
       act(() => result.current.toggleSort('code'));
       expect(result.current.sorting).toEqual([{ id: 'code', desc: false }]);
 
-      // Click 2: descending
       act(() => result.current.toggleSort('code'));
       expect(result.current.sorting).toEqual([{ id: 'code', desc: true }]);
 
-      // Click 3: removed
       act(() => result.current.toggleSort('code'));
       expect(result.current.sorting).toEqual([]);
     });
 
     it('supports multi-sort', () => {
-      const { result } = renderHook(() => useDataTable(defaultOptions()));
+      const { result } = renderSeededTable();
 
       act(() => result.current.toggleSort('code'));
       act(() => result.current.toggleSort('name'));
@@ -219,7 +241,7 @@ describe('useDataTable', () => {
     });
 
     it('toggleSort resets to page 1', () => {
-      const { result } = renderHook(() => useDataTable(defaultOptions()));
+      const { result } = renderSeededTable();
 
       act(() => result.current.setPage(3));
       act(() => result.current.toggleSort('code'));
@@ -227,7 +249,7 @@ describe('useDataTable', () => {
     });
 
     it('clearSorting removes all sorts and resets page', () => {
-      const { result } = renderHook(() => useDataTable(defaultOptions()));
+      const { result } = renderSeededTable();
 
       act(() => result.current.toggleSort('code'));
       act(() => result.current.setPage(2));
@@ -238,7 +260,7 @@ describe('useDataTable', () => {
     });
 
     it('orderBys converts sorting to backend format', () => {
-      const { result } = renderHook(() => useDataTable(defaultOptions()));
+      const { result } = renderSeededTable();
 
       act(() => result.current.toggleSort('code'));
       expect(result.current.orderBys).toEqual([{ item1: 'companyCode', item2: true }]);
@@ -252,13 +274,13 @@ describe('useDataTable', () => {
 
   describe('column visibility', () => {
     it('all columns visible by default', () => {
-      const { result } = renderHook(() => useDataTable(defaultOptions()));
+      const { result } = renderSeededTable();
 
       expect(result.current.visibleColumns).toHaveLength(3);
     });
 
     it('toggleColumnVisibility hides a column', () => {
-      const { result } = renderHook(() => useDataTable(defaultOptions()));
+      const { result } = renderSeededTable();
 
       act(() => result.current.toggleColumnVisibility('status'));
       expect(result.current.visibleColumns).toHaveLength(2);
@@ -266,7 +288,7 @@ describe('useDataTable', () => {
     });
 
     it('toggleColumnVisibility shows a hidden column', () => {
-      const { result } = renderHook(() => useDataTable(defaultOptions()));
+      const { result } = renderSeededTable();
 
       act(() => result.current.toggleColumnVisibility('status'));
       expect(result.current.visibleColumns).toHaveLength(2);
@@ -282,9 +304,7 @@ describe('useDataTable', () => {
         { id: 'status', accessorKey: 'isActive', header: 'Status', visible: false },
       ]);
 
-      const { result } = renderHook(() =>
-        useDataTable({ ...defaultOptions(), columns: columnsWithHidden }),
-      );
+      const { result } = renderSeededTable({ columns: columnsWithHidden });
 
       expect(result.current.visibleColumns).toHaveLength(2);
       expect(result.current.columnVisibility['status']).toBe(false);
@@ -295,30 +315,20 @@ describe('useDataTable', () => {
 
   describe('selection', () => {
     it('returns null when selection not configured', () => {
-      const { result } = renderHook(() => useDataTable(defaultOptions()));
+      const { result } = renderSeededTable();
 
       expect(result.current.selection).toBeNull();
     });
 
     it('returns selection state when configured', () => {
-      const { result } = renderHook(() =>
-        useDataTable({
-          ...defaultOptions(),
-          selection: { mode: 'multi' },
-        }),
-      );
+      const { result } = renderSeededTable({ selection: { mode: 'multi' } });
 
       expect(result.current.selection).not.toBeNull();
       expect(result.current.selection!.state.isEmpty).toBe(true);
     });
 
     it('selection toggle works', () => {
-      const { result } = renderHook(() =>
-        useDataTable({
-          ...defaultOptions(),
-          selection: { mode: 'multi' },
-        }),
-      );
+      const { result } = renderSeededTable({ selection: { mode: 'multi' } });
 
       act(() => result.current.selection!.toggleRow('1'));
       expect(result.current.selection!.state.isSelected('1')).toBe(true);
@@ -328,12 +338,7 @@ describe('useDataTable', () => {
     });
 
     it('single selection mode works', () => {
-      const { result } = renderHook(() =>
-        useDataTable({
-          ...defaultOptions(),
-          selection: { mode: 'single' },
-        }),
-      );
+      const { result } = renderSeededTable({ selection: { mode: 'single' } });
 
       act(() => result.current.selection!.toggleRow('1'));
       act(() => result.current.selection!.toggleRow('2'));
@@ -347,7 +352,7 @@ describe('useDataTable', () => {
 
   describe('getRowId', () => {
     it('is accessible from return value', () => {
-      const { result } = renderHook(() => useDataTable(defaultOptions()));
+      const { result } = renderSeededTable();
 
       expect(result.current.getRowId(SAMPLE_DATA[0]!)).toBe('1');
       expect(result.current.getRowId(SAMPLE_DATA[1]!)).toBe('2');

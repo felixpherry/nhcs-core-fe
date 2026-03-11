@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useRemoteTableQuery, buildTableInput } from './use-remote-table-query';
+import { useDataTable } from './use-data-table';
+import { createColumns } from '../components/data-table/column-types';
 
 interface Company {
   companyId: number;
@@ -12,6 +14,11 @@ interface BackendResponse {
   data: Company[];
   count: number;
 }
+
+const COLUMNS = createColumns<Company>([
+  { id: 'code', accessorKey: 'companyCode', header: 'Code' },
+  { id: 'name', accessorKey: 'companyName', header: 'Name' },
+]);
 
 const SAMPLE_DATA: Company[] = [
   { companyId: 1, companyCode: 'ACM', companyName: 'Acme' },
@@ -106,19 +113,26 @@ describe('buildTableInput', () => {
 });
 
 describe('useRemoteTableQuery', () => {
-  it('extracts data and totalCount from query result', () => {
+  it('syncs data and totalCount from query result into table', () => {
     const queryResult = {
       data: { data: SAMPLE_DATA, count: 25 } as BackendResponse,
       isLoading: false,
       isFetching: false,
     };
 
-    const { result } = renderHook(() => useRemoteTableQuery({ queryResult, extractData }));
+    const { result } = renderHook(() => {
+      const table = useDataTable<Company>({
+        columns: COLUMNS,
+        getRowId: (row) => String(row.companyId),
+      });
+      useRemoteTableQuery({ table, queryResult, extractData });
+      return table;
+    });
 
-    expect(result.current.tableProps.data).toEqual(SAMPLE_DATA);
-    expect(result.current.tableProps.totalCount).toBe(25);
-    expect(result.current.tableProps.isLoading).toBe(false);
-    expect(result.current.tableProps.isFetching).toBe(false);
+    expect(result.current.data).toEqual(SAMPLE_DATA);
+    expect(result.current.totalCount).toBe(25);
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.isFetching).toBe(false);
   });
 
   it('returns empty data when query has no data yet', () => {
@@ -128,12 +142,19 @@ describe('useRemoteTableQuery', () => {
       isFetching: true,
     };
 
-    const { result } = renderHook(() => useRemoteTableQuery({ queryResult, extractData }));
+    const { result } = renderHook(() => {
+      const table = useDataTable<Company>({
+        columns: COLUMNS,
+        getRowId: (row) => String(row.companyId),
+      });
+      useRemoteTableQuery({ table, queryResult, extractData });
+      return table;
+    });
 
-    expect(result.current.tableProps.data).toEqual([]);
-    expect(result.current.tableProps.totalCount).toBe(0);
-    expect(result.current.tableProps.isLoading).toBe(true);
-    expect(result.current.tableProps.isFetching).toBe(true);
+    expect(result.current.data).toEqual([]);
+    expect(result.current.totalCount).toBe(0);
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.isFetching).toBe(true);
   });
 
   it('passes through loading states', () => {
@@ -143,10 +164,17 @@ describe('useRemoteTableQuery', () => {
       isFetching: true, // refetching
     };
 
-    const { result } = renderHook(() => useRemoteTableQuery({ queryResult, extractData }));
+    const { result } = renderHook(() => {
+      const table = useDataTable<Company>({
+        columns: COLUMNS,
+        getRowId: (row) => String(row.companyId),
+      });
+      useRemoteTableQuery({ table, queryResult, extractData });
+      return table;
+    });
 
-    expect(result.current.tableProps.isLoading).toBe(false);
-    expect(result.current.tableProps.isFetching).toBe(true);
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.isFetching).toBe(true);
   });
 
   it('updates when query data changes', () => {
@@ -157,11 +185,18 @@ describe('useRemoteTableQuery', () => {
     };
 
     const { result, rerender } = renderHook(
-      ({ queryResult }) => useRemoteTableQuery({ queryResult, extractData }),
+      ({ queryResult }) => {
+        const table = useDataTable<Company>({
+          columns: COLUMNS,
+          getRowId: (row) => String(row.companyId),
+        });
+        useRemoteTableQuery({ table, queryResult, extractData });
+        return table;
+      },
       { initialProps: { queryResult: initialResult } },
     );
 
-    expect(result.current.tableProps.totalCount).toBe(25);
+    expect(result.current.totalCount).toBe(25);
 
     // Simulate new data arriving
     const newData: Company[] = [
@@ -177,7 +212,7 @@ describe('useRemoteTableQuery', () => {
       },
     });
 
-    expect(result.current.tableProps.data).toHaveLength(3);
-    expect(result.current.tableProps.totalCount).toBe(30);
+    expect(result.current.data).toHaveLength(3);
+    expect(result.current.totalCount).toBe(30);
   });
 });
