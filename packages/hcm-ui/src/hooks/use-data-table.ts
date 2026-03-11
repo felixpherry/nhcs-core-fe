@@ -13,29 +13,19 @@ import { useSelection, type UseSelectionOptions, type UseSelectionReturn } from 
 // ── Types ──
 
 export interface UseDataTableOptions<TData> {
-  /** Column definitions */
   columns: ColumnConfig<TData>[];
-  /** Unique row key extractor — REQUIRED */
   getRowId: (row: TData) => string;
-  /** Data to display */
-  data: TData[];
-  /** Total count from server (for pagination) */
-  totalCount: number;
-  /** Loading state */
-  isLoading: boolean;
-  /** Refetching state (subsequent fetches) */
-  isFetching?: boolean;
-  /** Default page size */
   defaultPageSize?: number;
-  /** Available page sizes */
   pageSizeOptions?: number[];
-  /** Default sorting */
   defaultSorting?: SortingState[];
-  /** Selection options — omit to disable selection */
   selection?: Omit<UseSelectionOptions, 'mode'> & { mode?: 'single' | 'multi' };
 }
 
 export interface UseDataTableReturn<TData> {
+  // ── Reactive data (set by the page after query) ──
+  _setData: (data: TData[], totalCount: number) => void;
+  _setLoading: (isLoading: boolean, isFetching: boolean) => void;
+
   // ── Data ──
   data: TData[];
   totalCount: number;
@@ -62,6 +52,13 @@ export interface UseDataTableReturn<TData> {
   orderBys: OrderBy[];
   clearSorting: () => void;
 
+  // ── Query state (read this to build your tRPC input) ──
+  queryState: {
+    page: number;
+    pageSize: number;
+    orderBys: OrderBy[];
+  };
+
   // ── Column visibility ──
   visibleColumns: ColumnConfig<TData>[];
   columnVisibility: Record<string, boolean>;
@@ -83,18 +80,29 @@ export function useDataTable<TData>(
   const {
     columns,
     getRowId,
-    data,
-    totalCount,
-    isLoading,
-    isFetching = false,
     defaultPageSize = 10,
     pageSizeOptions = [10, 25, 50, 100],
     defaultSorting = [],
     selection: selectionOptions,
   } = options;
 
-  // ── Pagination ──
+  // ── Data (set externally via _setData) ──
+  const [data, setDataState] = useState<TData[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
 
+  const _setData = useCallback((newData: TData[], newTotalCount: number) => {
+    setDataState(newData);
+    setTotalCount(newTotalCount);
+  }, []);
+
+  const _setLoading = useCallback((loading: boolean, fetching: boolean) => {
+    setIsLoading(loading);
+    setIsFetching(fetching);
+  }, []);
+
+  // ── Pagination ──
   const [page, setPageState] = useState(1);
   const [pageSize, setPageSizeState] = useState(defaultPageSize);
 
@@ -108,14 +116,14 @@ export function useDataTable<TData>(
 
   const setPage = useCallback(
     (newPage: number) => {
-      setPageState(Math.max(1, Math.min(newPage, pageCount)));
+      setPageState(Math.max(1, Math.min(newPage, pageCount || 1)));
     },
     [pageCount],
   );
 
   const setPageSize = useCallback((size: number) => {
     setPageSizeState(size);
-    setPageState(1); // Reset to page 1 when changing page size
+    setPageState(1);
   }, []);
 
   const previousPage = useCallback(() => {
@@ -127,7 +135,6 @@ export function useDataTable<TData>(
   }, [pageCount]);
 
   // ── Sorting ──
-
   const [sorting, setSorting] = useState<SortingState[]>(defaultSorting);
 
   const sortMapping = useMemo(() => buildSortMapping(columns), [columns]);
@@ -138,17 +145,13 @@ export function useDataTable<TData>(
     setSorting((prev) => {
       const existing = prev.find((s) => s.id === columnId);
       if (!existing) {
-        // Not sorted → ascending
         return [...prev, { id: columnId, desc: false }];
       }
       if (!existing.desc) {
-        // Ascending → descending
         return prev.map((s) => (s.id === columnId ? { ...s, desc: true } : s));
       }
-      // Descending → remove sort
       return prev.filter((s) => s.id !== columnId);
     });
-    // Reset to page 1 when sort changes
     setPageState(1);
   }, []);
 
@@ -158,7 +161,6 @@ export function useDataTable<TData>(
   }, []);
 
   // ── Column visibility ──
-
   const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(() => {
     const vis: Record<string, boolean> = {};
     for (const col of columns) {
@@ -180,7 +182,6 @@ export function useDataTable<TData>(
   }, []);
 
   // ── Selection ──
-
   const selectionHook = selectionOptions
     ? useSelection({
         mode: selectionOptions.mode ?? 'multi',
@@ -190,11 +191,23 @@ export function useDataTable<TData>(
       })
     : null;
 
-  // ── Derived ──
+  // ── Query state (for building tRPC input) ──
+  const queryState = useMemo(
+    () => ({
+      page,
+      pageSize,
+      orderBys,
+    }),
+    [page, pageSize, orderBys],
+  );
 
+  // ── Derived ──
   const isEmpty = !isLoading && data.length === 0;
 
   return {
+    _setData,
+    _setLoading,
+
     data,
     totalCount,
     isLoading,
@@ -217,6 +230,8 @@ export function useDataTable<TData>(
     toggleSort,
     orderBys,
     clearSorting,
+
+    queryState,
 
     visibleColumns,
     columnVisibility,

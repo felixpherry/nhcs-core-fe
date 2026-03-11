@@ -1,10 +1,9 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { trpc } from '@/lib/trpc';
 import {
   useDataTable,
-  useFilter,
   useRemoteTableQuery,
   buildTableInput,
   DataTable,
@@ -14,10 +13,10 @@ import {
   DataTablePagination,
   Button,
 } from '@nhcs/hcm-ui';
-import { companyColumns } from './column';
+import { companyColumns } from './columns';
 import type { Company } from '@nhcs/api/src/routers/organization-development/company/company.schema';
 
-// ── Filter defaults ──
+// ── Filter type ──
 
 interface CompanyFilter extends Record<string, unknown> {
   companyCode: string | null;
@@ -36,37 +35,30 @@ const FILTER_DEFAULTS: CompanyFilter = {
 };
 
 export function CompanyList() {
-  // ── Filters ──
-  const filter = useFilter({ defaultValues: FILTER_DEFAULTS });
+  const [search, setSearch] = useState('');
 
-  // ── Table state (pagination, sorting) ──
-  // We need a temporary table to get page/pageSize/orderBys for the query input.
-  // But useDataTable needs data from the query. Chicken-and-egg.
-  // Solution: manage page/sort state locally, build input, query, then pass to table.
-
+  // ── Table hook — owns ALL state ──
   const table = useDataTable<Company>({
     columns: companyColumns,
     getRowId: (row) => String(row.companyId),
-    data: [], // replaced by remoteQuery below
-    totalCount: 0, // replaced by remoteQuery below
-    isLoading: true, // replaced by remoteQuery below
     selection: { mode: 'multi' },
   });
 
-  // ── Build query input from table state ──
+  // ── Build query input from table's state ──
   const input = buildTableInput({
-    page: table.page,
-    pageSize: table.pageSize,
-    orderBys: table.orderBys,
-    filters: filter.applied,
+    ...table.queryState,
+    filters: {
+      ...FILTER_DEFAULTS,
+      companyName: search || null,
+    },
   });
 
   // ── tRPC query ──
   const query = trpc.organizationDevelopment.company.list.useQuery(input);
-  console.log(query.data);
 
-  // ── Wire query to table ──
-  const remoteQuery = useRemoteTableQuery<Company, typeof query.data>({
+  // ── Wire query → table (auto-syncs data + loading) ──
+  useRemoteTableQuery({
+    table,
     queryResult: query,
     extractData: (res) => ({
       data: (res?.data as Company[]) ?? [],
@@ -74,42 +66,29 @@ export function CompanyList() {
     }),
   });
 
-  // ── Merge remote data into table ──
-  // Override the placeholder values with real data
-  const tableWithData = useDataTable<Company>({
-    columns: companyColumns,
-    getRowId: (row) => String(row.companyId),
-    ...remoteQuery.tableProps,
-    selection: { mode: 'multi' },
-  });
-
-  // ── Search (debounced filter on companyName) ──
+  // ── Search handler ──
   const handleSearch = useCallback(
     (value: string) => {
-      filter.setDraftFieldValue('companyName', value || null);
-      filter.apply();
+      setSearch(value);
+      table.setPage(1);
     },
-    [filter],
+    [table],
   );
 
   return (
     <div className="space-y-4 p-6">
       <h1 className="text-2xl font-bold">Company</h1>
 
-      <DataTable table={tableWithData}>
+      <DataTable table={table}>
         <DataTableToolbar>
-          <DataTableSearch
-            value={filter.draft.companyName ?? ''}
-            onChange={handleSearch}
-            placeholder="Search company..."
-          />
+          <DataTableSearch value={search} onChange={handleSearch} placeholder="Search company..." />
           <DataTableActions>
             <Button>Add Company</Button>
           </DataTableActions>
         </DataTableToolbar>
       </DataTable>
 
-      <DataTablePagination table={tableWithData} />
+      <DataTablePagination table={table} />
     </div>
   );
 }

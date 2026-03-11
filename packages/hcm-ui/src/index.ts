@@ -92,7 +92,6 @@ export {
   useRemoteTableQuery,
   buildTableInput,
   type UseRemoteTableQueryOptions,
-  type UseRemoteTableQueryReturn,
   type TableQueryInput,
   type TableQueryResult,
 } from './hooks/use-remote-table-query';

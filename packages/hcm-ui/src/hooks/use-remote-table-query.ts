@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
-import type { UseDataTableOptions } from './use-data-table';
+import { useEffect } from 'react';
+import type { UseDataTableReturn } from './use-data-table';
 import type { OrderBy } from '../components/data-table/sort-utils';
 
 // ── Types ──
@@ -18,26 +18,14 @@ export interface TableQueryResult<TData> {
   totalCount: number;
 }
 
-export interface UseRemoteTableQueryOptions<
-  TData,
-  TResponse,
-  TFilter extends Record<string, unknown>,
-> {
-  /** The tRPC query hook result — e.g. trpc.company.list.useQuery(input) */
+export interface UseRemoteTableQueryOptions<TData, TResponse> {
+  table: UseDataTableReturn<TData>;
   queryResult: {
     data: TResponse | undefined;
     isLoading: boolean;
     isFetching: boolean;
   };
-  /** Extract data + totalCount from the query response */
   extractData: (response: TResponse) => TableQueryResult<TData>;
-  /** Current filter state (applied, not draft) */
-  filters?: TFilter;
-}
-
-export interface UseRemoteTableQueryReturn<TData> {
-  /** Props to spread into useDataTable */
-  tableProps: Pick<UseDataTableOptions<TData>, 'data' | 'totalCount' | 'isLoading' | 'isFetching'>;
 }
 
 // ── Helper: Build tRPC input ──
@@ -58,28 +46,21 @@ export function buildTableInput<TFilter extends Record<string, unknown>>(opts: {
 
 // ── Hook ──
 
-export function useRemoteTableQuery<
-  TData,
-  TResponse,
-  TFilter extends Record<string, unknown> = Record<string, unknown>,
->(
-  options: UseRemoteTableQueryOptions<TData, TResponse, TFilter>,
-): UseRemoteTableQueryReturn<TData> {
-  const { queryResult, extractData } = options;
+export function useRemoteTableQuery<TData, TResponse>(
+  options: UseRemoteTableQueryOptions<TData, TResponse>,
+): void {
+  const { table, queryResult, extractData } = options;
 
-  const extracted = useMemo(() => {
-    if (!queryResult.data) {
-      return { data: [] as TData[], totalCount: 0 };
+  // Sync loading state
+  useEffect(() => {
+    table._setLoading(queryResult.isLoading, queryResult.isFetching);
+  }, [queryResult.isLoading, queryResult.isFetching, table]);
+
+  // Sync data
+  useEffect(() => {
+    if (queryResult.data) {
+      const extracted = extractData(queryResult.data);
+      table._setData(extracted.data, extracted.totalCount);
     }
-    return extractData(queryResult.data);
-  }, [queryResult.data, extractData]);
-
-  return {
-    tableProps: {
-      data: extracted.data,
-      totalCount: extracted.totalCount,
-      isLoading: queryResult.isLoading,
-      isFetching: queryResult.isFetching,
-    },
-  };
+  }, [queryResult.data, extractData, table]);
 }
