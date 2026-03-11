@@ -96,4 +96,8 @@ export {
   type TableQueryResult,
 } from './hooks/use-remote-table-query';
 
-export { useDataTable } from './hooks/use-data-table';
+export {
+  useDataTable,
+  type UseDataTableOptions,
+  type UseDataTableReturn,
+} from './hooks/use-data-table';
