@@ -7,8 +7,8 @@ import { useState, useCallback, useMemo } from 'react';
 export interface SelectionState {
   selectedKeys: Set<string>;
   isSelected: (key: string) => boolean;
-  isAllSelected: boolean;
-  isPartiallySelected: boolean;
+  isAllSelected: (allKeys: string[]) => boolean;
+  isPartiallySelected: (allKeys: string[]) => boolean;
   isEmpty: boolean;
 }
 
@@ -147,8 +147,14 @@ export function useSelection(options: UseSelectionOptions): UseSelectionReturn {
     () => ({
       selectedKeys,
       isSelected: (key: string) => selectedKeys.has(key),
-      isAllSelected: false, // Needs allKeys context — set by DataTable/TreeTable
-      isPartiallySelected: false,
+      isAllSelected: (allKeys: string[]) =>
+        allKeys.length > 0 && allKeys.every((k) => selectedKeys.has(k)),
+      isPartiallySelected: (allKeys: string[]) => {
+        if (allKeys.length === 0) return false;
+        const someSelected = allKeys.some((k) => selectedKeys.has(k));
+        const allSelected = allKeys.every((k) => selectedKeys.has(k));
+        return someSelected && !allSelected;
+      },
       isEmpty: selectedKeys.size === 0,
     }),
     [selectedKeys],

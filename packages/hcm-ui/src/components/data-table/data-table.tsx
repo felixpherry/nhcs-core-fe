@@ -119,9 +119,7 @@ export function DataTableContent<TData>({
             {selection && (
               <TableHead className="w-12">
                 <Checkbox
-                  checked={
-                    allRowKeys.length > 0 && allRowKeys.every((k) => selection.state.isSelected(k))
-                  }
+                  checked={selection.state.isAllSelected(allRowKeys)}
                   onCheckedChange={() => selection.toggleAll(allRowKeys)}
                   aria-label="Select all"
                 />
