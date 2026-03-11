@@ -25,9 +25,13 @@ packages/
 └── hcm-ui/         # @nhcs/hcm-ui — reusable UI components & hooks
     └── src/
         ├── components/
-        │   └── data-table/     # DataTable compound component
-        │       ├── data-table.tsx        # DataTable, DataTableContent, DataTablePagination, DataTableToolbar, etc.
-        │       └── column-types.ts       # createColumns, ColumnConfig, sortingToOrderBys
+        │   ├── data-table/     # DataTable compound component
+        │   │   ├── data-table.tsx        # DataTable, DataTableContent, DataTablePagination, DataTableToolbar, etc.
+        │   │   └── column-types.ts       # createColumns, ColumnConfig, sortingToOrderBys
+        │   └── form-field/     # Form field components & types
+        │       ├── types.ts             # FormFieldConfig union, FieldOption, AsyncComboboxQueryParams, PaginatedFieldOptions
+        │       ├── form-field.tsx        # FormField renderer (delegates to renderers.tsx)
+        │       └── renderers.tsx         # Individual field type renderers
         ├── hooks/
         │   ├── use-data-table.ts         # Core table state hook (pagination, sorting, visibility, selection)
         │   ├── use-remote-table-query.ts # Syncs tRPC query result → useDataTable (+ buildTableInput helper)
@@ -111,6 +115,21 @@ Row selection state (multi/single mode). Always called unconditionally inside us
 - Selection checkboxes auto-render when `table.selection` is not null.
 - Sorting is triggered by clicking sortable column headers.
 
+### FormField Types (Design Doc v4.2 §7.1)
+
+`FormFieldConfig` is a discriminated union on `type`. Key types:
+
+- **`FormFieldConfigBase<TForm>`** — shared base: `name`, `label`, `placeholder`, `required`, `readOnly`, `visible`, `resetOnHide`, `colSpan`.
+  - `resetOnHide?: boolean` — reset to default when hidden. Default: `true` for filters, `false` for forms.
+- **`AsyncComboboxFieldConfig<TForm>`** — `type: 'async-combobox'`:
+  - `queryFn: (params: AsyncComboboxQueryParams<TForm>) => Promise<FieldOption[] | PaginatedFieldOptions>`
+  - `AsyncComboboxQueryParams<TForm>` — `{ search: string; values?: Partial<TForm>; pageParam?: unknown }`
+  - `PaginatedFieldOptions` — `{ options: FieldOption[]; nextCursor: unknown }`
+  - `debounceMs?: number`
+- Other types: `text`, `number`, `select`, `combobox`, `date`, `textarea`, `checkbox`, `flag`, `status-badge`
+
+**Note:** `async-combobox` renderer is not yet implemented — types are aligned, runtime is a placeholder.
+
 ### Testing hcm-ui Hooks
 
 Tests use a `renderSeededTable` helper pattern:
@@ -183,9 +202,8 @@ business logic, and API shapes against the existing codebase.
 - Refactor auth header construction into tRPC context layer (so protectedProcedure auto-attaches headers)
 - Refactor Field components for reusability across forms
 - Implement session management (store tokens after login)
-- Align AsyncComboboxFieldConfig.queryFn with design doc v4.2 signature: `(params: { search, values?, pageParam? }) => Promise<Option[] | { options, nextCursor }>`
-- Add `resetOnHide` to FormFieldConfigBase (§7.1/§6.3.1)
 - Build FilterPanel (P0 per §6.2, §16.1) — consumes useFilter + useFieldVisibility + FormFieldConfig[]
+- Implement async-combobox renderer (types are aligned, runtime is placeholder)
 
 ## Testing Strategy
 
