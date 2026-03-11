@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { renderHook, act } from '@testing-library/react';
 import {
   FilterPanel,
   FilterPanelFields,
@@ -31,49 +30,68 @@ const DEFAULT_VALUES: TestFilter = {
 const FILTER_FIELDS: FormFieldConfig<TestFilter>[] = [
   { id: 'code', name: 'code', type: 'text', label: 'Code' },
   { id: 'name', name: 'name', type: 'text', label: 'Name' },
-  { id: 'status', name: 'status', type: 'select', label: 'Status', options: [
-    { label: 'Active', value: 'T' },
-    { label: 'Inactive', value: 'F' },
-  ]},
+  {
+    id: 'status',
+    name: 'status',
+    type: 'select',
+    label: 'Status',
+    options: [
+      { label: 'Active', value: 'T' },
+      { label: 'Inactive', value: 'F' },
+    ],
+  },
 ];
 
 const ALL_FIELD_IDS = ['code', 'name', 'status'];
 
-// ── Test helper ──
+// ── Wrapper component (single React tree) ──
 
 /**
- * Renders the full FilterPanel with real hooks (integration style).
- * Returns the hook results so tests can inspect and drive state changes.
+ * Hooks MUST live inside the rendered component so state changes
+ * propagate through React's reconciliation.
  */
-function renderFilterPanel(options?: {
+function TestFilterPanel({
+  defaultVisibleFieldIds,
+  fields = FILTER_FIELDS,
+  children,
+}: {
   defaultVisibleFieldIds?: string[];
   fields?: FormFieldConfig<TestFilter>[];
+  children?: (props: {
+    filter: ReturnType<typeof useFilter<TestFilter>>;
+    visibility: ReturnType<typeof useFieldVisibility>;
+  }) => React.ReactNode;
 }) {
-  const fields = options?.fields ?? FILTER_FIELDS;
-
-  const hookResult = renderHook(() => {
-    const filter = useFilter<TestFilter>({ defaultValues: DEFAULT_VALUES });
-    const visibility = useFieldVisibility({
-      scopeKey: 'test-filter',
-      allFieldIds: ALL_FIELD_IDS,
-      defaultVisibleFieldIds: options?.defaultVisibleFieldIds,
-    });
-    return { filter, visibility };
+  const filter = useFilter<TestFilter>({ defaultValues: DEFAULT_VALUES });
+  const visibility = useFieldVisibility({
+    scopeKey: 'test-filter',
+    allFieldIds: ALL_FIELD_IDS,
+    defaultVisibleFieldIds,
   });
 
-  const { filter, visibility } = hookResult.result.current;
+  if (children) {
+    return <>{children({ filter, visibility })}</>;
+  }
 
-  const renderResult = render(
+  return (
     <FilterPanel fields={fields} filter={filter} visibility={visibility}>
       <div className="flex items-center justify-between">
         <FilterPanelFieldToggle />
         <FilterPanelActions />
       </div>
       <FilterPanelFields />
-    </FilterPanel>,
+    </FilterPanel>
   );
+}
 
-  return { hookResult, renderResult };
+// ── Helper: get the fields grid container ──
+
+function getFieldsGrid() {
+  return document.querySelector('[data-slot="filter-panel-fields"]');
+}
+
+function getToggleList() {
+  return document.querySelector('[data-slot="filter-panel-field-toggle-list"]');
 }
 
 // ── Tests ──
@@ -81,7 +99,7 @@ function renderFilterPanel(options?: {
 describe('FilterPanel', () => {
   describe('rendering', () => {
     it('renders the root wrapper with children', () => {
-      renderFilterPanel();
+      render(<TestFilterPanel />);
 
       expect(screen.getByText('Add Filter')).toBeInTheDocument();
       expect(screen.getByText('Apply')).toBeInTheDocument();
@@ -89,15 +107,15 @@ describe('FilterPanel', () => {
     });
 
     it('renders all filter fields when all are visible', () => {
-      renderFilterPanel();
+      render(<TestFilterPanel />);
 
-      expect(screen.getByLabelText('Code')).toBeInTheDocument();
-      expect(screen.getByLabelText('Name')).toBeInTheDocument();
-      expect(screen.getByLabelText('Status')).toBeInTheDocument();
+      const fieldsGrid = getFieldsGrid()!;
+      expect(within(fieldsGrid as HTMLElement).getByLabelText('Code')).toBeInTheDocument();
+      expect(within(fieldsGrid as HTMLElement).getByLabelText('Name')).toBeInTheDocument();
+      expect(within(fieldsGrid as HTMLElement).getByLabelText('Status')).toBeInTheDocument();
     });
 
     it('throws when sub-component used outside FilterPanel', () => {
-      // Suppress console.error for expected error
       const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       expect(() => render(<FilterPanelFields />)).toThrow(
@@ -117,15 +135,16 @@ describe('FilterPanel', () => {
 
 describe('FilterPanelFields', () => {
   it('renders only visible fields', () => {
-    renderFilterPanel({ defaultVisibleFieldIds: ['code', 'name'] });
+    render(<TestFilterPanel defaultVisibleFieldIds={['code', 'name']} />);
 
-    expect(screen.getByLabelText('Code')).toBeInTheDocument();
-    expect(screen.getByLabelText('Name')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Status')).not.toBeInTheDocument();
+    const fieldsGrid = getFieldsGrid()!;
+    expect(within(fieldsGrid as HTMLElement).getByLabelText('Code')).toBeInTheDocument();
+    expect(within(fieldsGrid as HTMLElement).getByLabelText('Name')).toBeInTheDocument();
+    expect(within(fieldsGrid as HTMLElement).queryByLabelText('Status')).not.toBeInTheDocument();
   });
 
   it('shows empty message when no fields are visible', () => {
-    renderFilterPanel({ defaultVisibleFieldIds: [] });
+    render(<TestFilterPanel defaultVisibleFieldIds={[]} />);
 
     expect(
       screen.getByText('No filters visible. Use the field toggle to add filters.'),
@@ -134,64 +153,60 @@ describe('FilterPanelFields', () => {
 
   it('binds field values to filter.draft', async () => {
     const user = userEvent.setup();
-    renderFilterPanel();
+    render(<TestFilterPanel />);
 
-    const codeInput = screen.getByLabelText('Code');
+    const fieldsGrid = getFieldsGrid()!;
+    const codeInput = within(fieldsGrid as HTMLElement).getByLabelText('Code');
     await user.type(codeInput, 'ACM');
 
     expect(codeInput).toHaveValue('ACM');
   });
 
   it('supports custom grid class', () => {
-    const hookResult = renderHook(() => {
-      const filter = useFilter<TestFilter>({ defaultValues: DEFAULT_VALUES });
-      const visibility = useFieldVisibility({
-        scopeKey: 'test-filter',
-        allFieldIds: ALL_FIELD_IDS,
-      });
-      return { filter, visibility };
-    });
-
-    const { filter, visibility } = hookResult.result.current;
-
     render(
-      <FilterPanel fields={FILTER_FIELDS} filter={filter} visibility={visibility}>
-        <FilterPanelFields gridClassName="grid-cols-2" />
-      </FilterPanel>,
+      <TestFilterPanel>
+        {({ filter, visibility }) => (
+          <FilterPanel fields={FILTER_FIELDS} filter={filter} visibility={visibility}>
+            <FilterPanelFields gridClassName="grid-cols-2" />
+          </FilterPanel>
+        )}
+      </TestFilterPanel>,
     );
 
-    const fieldsGrid = document.querySelector('[data-slot="filter-panel-fields"]');
+    const fieldsGrid = getFieldsGrid();
     expect(fieldsGrid).toHaveClass('grid-cols-2');
   });
 });
 
 describe('FilterPanelActions', () => {
   it('Apply button is disabled when draft equals applied (not dirty)', () => {
-    renderFilterPanel();
+    render(<TestFilterPanel />);
 
     expect(screen.getByText('Apply')).toBeDisabled();
   });
 
   it('Reset button is disabled when no filters are active', () => {
-    renderFilterPanel();
+    render(<TestFilterPanel />);
 
     expect(screen.getByText('Reset')).toBeDisabled();
   });
 
   it('Apply button becomes enabled after editing a field', async () => {
     const user = userEvent.setup();
-    renderFilterPanel();
+    render(<TestFilterPanel />);
 
-    await user.type(screen.getByLabelText('Code'), 'ACM');
+    const fieldsGrid = getFieldsGrid()!;
+    await user.type(within(fieldsGrid as HTMLElement).getByLabelText('Code'), 'ACM');
 
     expect(screen.getByText('Apply')).toBeEnabled();
   });
 
   it('clicking Apply applies the draft and disables the button', async () => {
     const user = userEvent.setup();
-    renderFilterPanel();
+    render(<TestFilterPanel />);
 
-    await user.type(screen.getByLabelText('Code'), 'ACM');
+    const fieldsGrid = getFieldsGrid()!;
+    await user.type(within(fieldsGrid as HTMLElement).getByLabelText('Code'), 'ACM');
     expect(screen.getByText('Apply')).toBeEnabled();
 
     await user.click(screen.getByText('Apply'));
@@ -202,9 +217,10 @@ describe('FilterPanelActions', () => {
 
   it('clicking Apply shows active count badge', async () => {
     const user = userEvent.setup();
-    renderFilterPanel();
+    render(<TestFilterPanel />);
 
-    await user.type(screen.getByLabelText('Code'), 'ACM');
+    const fieldsGrid = getFieldsGrid()!;
+    await user.type(within(fieldsGrid as HTMLElement).getByLabelText('Code'), 'ACM');
     await user.click(screen.getByText('Apply'));
 
     expect(screen.getByTestId('active-filter-count')).toHaveTextContent('1 active');
@@ -212,10 +228,12 @@ describe('FilterPanelActions', () => {
 
   it('Reset clears applied filters and hides badge', async () => {
     const user = userEvent.setup();
-    renderFilterPanel();
+    render(<TestFilterPanel />);
+
+    const fieldsGrid = getFieldsGrid()!;
 
     // Apply a filter
-    await user.type(screen.getByLabelText('Code'), 'ACM');
+    await user.type(within(fieldsGrid as HTMLElement).getByLabelText('Code'), 'ACM');
     await user.click(screen.getByText('Apply'));
     expect(screen.getByTestId('active-filter-count')).toBeInTheDocument();
 
@@ -224,36 +242,30 @@ describe('FilterPanelActions', () => {
 
     expect(screen.queryByTestId('active-filter-count')).not.toBeInTheDocument();
     expect(screen.getByText('Reset')).toBeDisabled();
-    expect(screen.getByLabelText('Code')).toHaveValue('');
+    expect(within(fieldsGrid as HTMLElement).getByLabelText('Code')).toHaveValue('');
   });
 
   it('shows multiple active filters count', async () => {
     const user = userEvent.setup();
-    renderFilterPanel();
+    render(<TestFilterPanel />);
 
-    await user.type(screen.getByLabelText('Code'), 'ACM');
-    await user.type(screen.getByLabelText('Name'), 'Acme');
+    const fieldsGrid = getFieldsGrid()!;
+    await user.type(within(fieldsGrid as HTMLElement).getByLabelText('Code'), 'ACM');
+    await user.type(within(fieldsGrid as HTMLElement).getByLabelText('Name'), 'Acme');
     await user.click(screen.getByText('Apply'));
 
     expect(screen.getByTestId('active-filter-count')).toHaveTextContent('2 active');
   });
 
   it('supports custom button labels', () => {
-    const hookResult = renderHook(() => {
-      const filter = useFilter<TestFilter>({ defaultValues: DEFAULT_VALUES });
-      const visibility = useFieldVisibility({
-        scopeKey: 'test-filter',
-        allFieldIds: ALL_FIELD_IDS,
-      });
-      return { filter, visibility };
-    });
-
-    const { filter, visibility } = hookResult.result.current;
-
     render(
-      <FilterPanel fields={FILTER_FIELDS} filter={filter} visibility={visibility}>
-        <FilterPanelActions applyLabel="Search" resetLabel="Clear All" />
-      </FilterPanel>,
+      <TestFilterPanel>
+        {({ filter, visibility }) => (
+          <FilterPanel fields={FILTER_FIELDS} filter={filter} visibility={visibility}>
+            <FilterPanelActions applyLabel="Search" resetLabel="Clear All" />
+          </FilterPanel>
+        )}
+      </TestFilterPanel>,
     );
 
     expect(screen.getByText('Search')).toBeInTheDocument();
@@ -263,28 +275,27 @@ describe('FilterPanelActions', () => {
 
 describe('FilterPanelFieldToggle', () => {
   it('renders the toggle button', () => {
-    renderFilterPanel();
+    render(<TestFilterPanel />);
 
     expect(screen.getByText('Add Filter')).toBeInTheDocument();
   });
 
   it('does not show visibility badge when all fields visible', () => {
-    renderFilterPanel();
+    render(<TestFilterPanel />);
 
-    // No "3/3" badge since all are visible
-    const toggleButton = screen.getByText('Add Filter');
-    expect(within(toggleButton).queryByText('3/3')).not.toBeInTheDocument();
+    // No "X/Y" badge since all are visible
+    expect(screen.queryByText('3/3')).not.toBeInTheDocument();
   });
 
   it('shows visibility badge when some fields are hidden', () => {
-    renderFilterPanel({ defaultVisibleFieldIds: ['code'] });
+    render(<TestFilterPanel defaultVisibleFieldIds={['code']} />);
 
     expect(screen.getByText('1/3')).toBeInTheDocument();
   });
 
   it('opens field list on click', async () => {
     const user = userEvent.setup();
-    renderFilterPanel();
+    render(<TestFilterPanel />);
 
     await user.click(screen.getByText('Add Filter'));
 
@@ -295,7 +306,7 @@ describe('FilterPanelFieldToggle', () => {
 
   it('closes field list on second click', async () => {
     const user = userEvent.setup();
-    renderFilterPanel();
+    render(<TestFilterPanel />);
 
     await user.click(screen.getByText('Add Filter'));
     expect(screen.getByText('Toggle Filters')).toBeInTheDocument();
@@ -304,60 +315,65 @@ describe('FilterPanelFieldToggle', () => {
     expect(screen.queryByText('Toggle Filters')).not.toBeInTheDocument();
   });
 
-  it('shows checkboxes for each field', async () => {
+  it('shows checkboxes for each field in the toggle panel', async () => {
     const user = userEvent.setup();
-    renderFilterPanel();
+    render(<TestFilterPanel />);
 
     await user.click(screen.getByText('Add Filter'));
 
-    // Each field should have a labeled checkbox
-    expect(screen.getByLabelText('Code')).toBeInTheDocument();
-    expect(screen.getByLabelText('Name')).toBeInTheDocument();
-    expect(screen.getByLabelText('Status')).toBeInTheDocument();
+    // Scope to the toggle list to avoid collisions with filter field labels
+    const toggleList = getToggleList()!;
+    const checkboxes = within(toggleList as HTMLElement).getAllByRole('checkbox');
+    expect(checkboxes).toHaveLength(3);
   });
 
   it('toggling a checkbox hides the corresponding filter field', async () => {
     const user = userEvent.setup();
-    renderFilterPanel();
+    render(<TestFilterPanel />);
 
-    // Verify Status filter field exists
-    const statusField = screen.getByLabelText('Status');
-    expect(statusField).toBeInTheDocument();
+    // Verify Status filter field exists in the grid
+    const fieldsGrid = getFieldsGrid()!;
+    expect(within(fieldsGrid as HTMLElement).getByLabelText('Status')).toBeInTheDocument();
 
     // Open toggle panel
     await user.click(screen.getByText('Add Filter'));
 
-    // Uncheck Status — the checkbox inside the toggle panel
-    const toggleCheckbox = screen.getByRole('checkbox', { name: 'Status' });
-    await user.click(toggleCheckbox);
+    // Find the Status checkbox in the toggle panel
+    const toggleList = getToggleList()!;
+    const statusCheckbox = within(toggleList as HTMLElement).getByLabelText('Status');
+    await user.click(statusCheckbox);
 
     // Status filter field should be gone from the fields grid
-    // But the checkbox label "Status" should still be in the toggle panel
-    const statusFieldInGrid = document.querySelector('[data-slot="filter-panel-fields"]');
-    expect(statusFieldInGrid).not.toHaveTextContent('Status');
+    // Note: fieldsGrid reference may have changed, re-query
+    const updatedFieldsGrid = getFieldsGrid()!;
+    expect(
+      within(updatedFieldsGrid as HTMLElement).queryByLabelText('Status'),
+    ).not.toBeInTheDocument();
   });
 
   it('Show All button shows all fields', async () => {
     const user = userEvent.setup();
-    renderFilterPanel({ defaultVisibleFieldIds: ['code'] });
+    render(<TestFilterPanel defaultVisibleFieldIds={['code']} />);
 
-    // Only code field visible
-    expect(screen.getByLabelText('Code')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Name')).not.toBeInTheDocument();
+    // Only code field visible initially
+    const fieldsGrid = getFieldsGrid()!;
+    expect(within(fieldsGrid as HTMLElement).getByLabelText('Code')).toBeInTheDocument();
+    expect(within(fieldsGrid as HTMLElement).queryByLabelText('Name')).not.toBeInTheDocument();
 
     // Open toggle panel and click Show All
     await user.click(screen.getByText('Add Filter'));
     await user.click(screen.getByText('Show All'));
 
-    // All fields now visible
-    expect(screen.getByLabelText('Code')).toBeInTheDocument();
-    // Name should appear as a filter field
-    expect(screen.getAllByLabelText('Name').length).toBeGreaterThanOrEqual(1);
+    // All fields now visible — re-query the grid
+    const updatedFieldsGrid = getFieldsGrid()!;
+    expect(within(updatedFieldsGrid as HTMLElement).getByLabelText('Code')).toBeInTheDocument();
+    expect(within(updatedFieldsGrid as HTMLElement).getByLabelText('Name')).toBeInTheDocument();
+    expect(within(updatedFieldsGrid as HTMLElement).getByLabelText('Status')).toBeInTheDocument();
   });
 
   it('Hide All button hides all fields', async () => {
     const user = userEvent.setup();
-    renderFilterPanel();
+    render(<TestFilterPanel />);
 
     // Open toggle panel and click Hide All
     await user.click(screen.getByText('Add Filter'));
@@ -371,7 +387,7 @@ describe('FilterPanelFieldToggle', () => {
 
   it('Show All is disabled when all fields are visible', async () => {
     const user = userEvent.setup();
-    renderFilterPanel();
+    render(<TestFilterPanel />);
 
     await user.click(screen.getByText('Add Filter'));
 
@@ -380,7 +396,7 @@ describe('FilterPanelFieldToggle', () => {
 
   it('Hide All is disabled when no fields are visible', async () => {
     const user = userEvent.setup();
-    renderFilterPanel({ defaultVisibleFieldIds: [] });
+    render(<TestFilterPanel defaultVisibleFieldIds={[]} />);
 
     await user.click(screen.getByText('Add Filter'));
 
@@ -388,21 +404,14 @@ describe('FilterPanelFieldToggle', () => {
   });
 
   it('supports custom label', () => {
-    const hookResult = renderHook(() => {
-      const filter = useFilter<TestFilter>({ defaultValues: DEFAULT_VALUES });
-      const visibility = useFieldVisibility({
-        scopeKey: 'test-filter',
-        allFieldIds: ALL_FIELD_IDS,
-      });
-      return { filter, visibility };
-    });
-
-    const { filter, visibility } = hookResult.result.current;
-
     render(
-      <FilterPanel fields={FILTER_FIELDS} filter={filter} visibility={visibility}>
-        <FilterPanelFieldToggle label="Manage Filters" />
-      </FilterPanel>,
+      <TestFilterPanel>
+        {({ filter, visibility }) => (
+          <FilterPanel fields={FILTER_FIELDS} filter={filter} visibility={visibility}>
+            <FilterPanelFieldToggle label="Manage Filters" />
+          </FilterPanel>
+        )}
+      </TestFilterPanel>,
     );
 
     expect(screen.getByText('Manage Filters')).toBeInTheDocument();
@@ -410,7 +419,7 @@ describe('FilterPanelFieldToggle', () => {
 
   it('aria-expanded reflects open state', async () => {
     const user = userEvent.setup();
-    renderFilterPanel();
+    render(<TestFilterPanel />);
 
     const button = screen.getByText('Add Filter');
     expect(button).toHaveAttribute('aria-expanded', 'false');
