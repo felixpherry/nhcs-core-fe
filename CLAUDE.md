@@ -28,6 +28,9 @@ packages/
         │   ├── data-table/     # DataTable compound component
         │   │   ├── data-table.tsx        # DataTable, DataTableContent, DataTablePagination, DataTableToolbar, etc.
         │   │   └── column-types.ts       # createColumns, ColumnConfig, sortingToOrderBys
+        │   ├── filter-panel/   # FilterPanel compound component
+        │   │   ├── filter-panel.tsx      # FilterPanel, FilterPanelFields, FilterPanelActions, FilterPanelFieldToggle
+        │   │   └── index.ts             # Barrel export
         │   └── form-field/     # Form field components & types
         │       ├── types.ts             # FormFieldConfig union, FieldOption, AsyncComboboxQueryParams, PaginatedFieldOptions
         │       ├── form-field.tsx        # FormField renderer (delegates to renderers.tsx)
@@ -37,7 +40,8 @@ packages/
         │   ├── use-remote-table-query.ts # Syncs tRPC query result → useDataTable (+ buildTableInput helper)
         │   ├── use-selection.ts          # Row selection state (multi/single mode)
         │   ├── use-crud-form.ts          # CRUD form sheet state management
-        │   └── use-filter.ts             # Filter state management
+        │   ├── use-filter.ts             # Filter state management
+        │   └── use-field-visibility.ts   # Field visibility toggle with localStorage persistence
         └── index.ts             # Public exports
 ```
 
@@ -99,6 +103,69 @@ Row selection state (multi/single mode). Always called unconditionally inside us
 - `toggleRow(key)`, `toggleAll(allKeys)`, `clear()` for mutations.
 - `state.selectedKeys`, `state.count`, `state.isEmpty` for reading.
 
+### useFilter
+
+Filter state management with draft/applied pattern:
+
+```ts
+const filter = useFilter({
+  defaultValues: { code: '', name: '', status: '' as Flag },
+});
+
+filter.draft          // Current draft values (user is editing)
+filter.applied        // Applied filter values (sent to backend)
+filter.isDirty        // Draft differs from applied
+filter.activeCount    // Number of non-default applied filters
+filter.hasActiveFilters
+filter.setDraftFieldValue('code', 'ACM')
+filter.applyDraft()   // Draft → Applied
+filter.resetDraft()   // Applied → Draft (discard edits)
+filter.resetApplied() // Reset to defaults
+filter.resetFields(['code', 'name'])  // Reset specific fields to defaults
+```
+
+### useFieldVisibility
+
+Field visibility toggle with localStorage persistence:
+
+```ts
+const visibility = useFieldVisibility({
+  scopeKey: 'company-filter',
+  allFieldIds: ['code', 'name', 'status'],
+  defaultVisibleFieldIds: ['code', 'name'],  // optional
+  onFieldsHidden: (ids) => filter.resetFields(ids),  // resetOnHide wiring
+});
+
+visibility.visibleIds     // Set<string>
+visibility.isVisible(id)  // boolean
+visibility.toggle(id)     // show/hide
+visibility.showAll()
+visibility.hideAll()
+visibility.totalCount     // total number of fields
+visibility.areAllVisible  // boolean
+```
+
+### FilterPanel Compound Component
+
+```tsx
+<FilterPanel fields={filterFields} filter={filter} visibility={visibility}>
+  <div className="flex items-center justify-between">
+    <FilterPanelFieldToggle />
+    <FilterPanelActions />
+  </div>
+  <FilterPanelFields />
+</FilterPanel>
+```
+
+| Sub-component | Responsibility |
+|---|---|
+| `FilterPanel` | Root wrapper. Provides context (`fields`, `filter`, `visibility`) to children. |
+| `FilterPanelFields` | Renders visible fields in a responsive CSS grid via `FormField`. Binds to `filter.draft`. |
+| `FilterPanelActions` | Apply (disabled when `!isDirty`) + Reset (disabled when `!hasActiveFilters`) + active count `Badge`. |
+| `FilterPanelFieldToggle` | Collapsible checkbox list to toggle individual field visibility. Includes Show All / Hide All. |
+
+**resetOnHide wiring:** Pass `onFieldsHidden: (ids) => filter.resetFields(ids)` to `useFieldVisibility`. When a field is hidden, its draft value is immediately reset to default. FilterPanel doesn't own this — the hooks are composable.
+
 ### DataTable Compound Component
 
 ```tsx
@@ -155,6 +222,27 @@ const { result } = renderHook(() => {
 });
 ```
 
+For compound components like `FilterPanel`, use a **wrapper component** that calls hooks internally so everything lives in a single React tree:
+
+```tsx
+function TestFilterPanel(props: { onFilter?: UseFilterReturn }) {
+  const filter = useFilter({ defaultValues: { code: '', name: '' } });
+  const visibility = useFieldVisibility({
+    scopeKey: 'test',
+    allFieldIds: ['code', 'name'],
+    onFieldsHidden: (ids) => filter.resetFields(ids),
+  });
+
+  return (
+    <FilterPanel fields={fields} filter={filter} visibility={visibility}>
+      <FilterPanelActions />
+      <FilterPanelFields />
+      <FilterPanelFieldToggle />
+    </FilterPanel>
+  );
+}
+```
+
 ## Backend API Patterns
 
 - List: `POST /entity/sort/search?page=X&limit=Y` with flat filter body + `orderBys`
@@ -202,7 +290,6 @@ business logic, and API shapes against the existing codebase.
 - Refactor auth header construction into tRPC context layer (so protectedProcedure auto-attaches headers)
 - Refactor Field components for reusability across forms
 - Implement session management (store tokens after login)
-- Build FilterPanel (P0 per §6.2, §16.1) — consumes useFilter + useFieldVisibility + FormFieldConfig[]
 - Implement async-combobox renderer (types are aligned, runtime is placeholder)
 
 ## Testing Strategy
