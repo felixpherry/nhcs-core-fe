@@ -1,6 +1,7 @@
 import { getPolicy, type ProcedureMeta } from '@nhcs/registries';
 import { BackendError, CallerAbortError, TimeoutError } from './errors';
 import { sleep, isMutation } from './utils';
+import { unwrapEnvelope } from './envelope';
 
 const BACKEND_API_URL = process.env.BACKEND_API_URL!;
 
@@ -57,8 +58,9 @@ export async function backendFetch<T>(options: BackendFetchOptions): Promise<T> 
         throw new BackendError(res.status, body, correlationId);
       }
 
-      // Success
-      return (await res.json()) as T;
+      // Success path
+      const json = await res.json();
+      return unwrapEnvelope(json) as T;
     } catch (err) {
       clearTimeout(timeoutId);
 

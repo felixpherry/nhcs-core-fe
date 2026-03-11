@@ -18,3 +18,4 @@ export {
 export { appRouter, type AppRouter } from './root';
 export { getSession, createSession, destroySession } from './session-actions';
 export { sessionOptions, type SessionData } from './session';
+export { EnvelopeError } from './envelope';

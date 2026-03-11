@@ -3,15 +3,15 @@ import { z } from 'zod';
 import { protectedProcedure, router } from '../../../trpc';
 import { backendFetch } from '../../../backend-fetch';
 import { registerProcedure, getProcedureMeta } from '@nhcs/registries';
-import { createEnvelopeSchema, createResultWrapperSchema } from '@nhcs/types';
 import { companySchema } from './company.schema';
 
-// ── Register procedure ──
+// ── Register procedures ──
 registerProcedure('company.list', {
   mode: 'proxy',
   type: 'list',
   criticality: 'critical',
 });
+
 registerProcedure('company.changeStatus', {
   mode: 'proxy',
   type: 'mutation',
@@ -24,14 +24,10 @@ registerProcedure('company.remove', {
   criticality: 'critical',
 });
 
-// ── What the backend returns for a company list ──
-const companyListEnvelope = createEnvelopeSchema(createResultWrapperSchema(companySchema));
-
-// ── The input shape — what the frontend sends matches what the backend actually expects ──
+// ── Input schema ──
 const companyListInput = z.object({
   page: z.number().min(1).default(1),
   limit: z.number().min(1).max(100).default(10),
-  // Filter fields — flat, not nested
   companyCode: z.string().nullable().optional(),
   companyName: z.string().nullable().optional(),
   companyGroupId: z.number().nullable().optional(),
@@ -42,43 +38,40 @@ const companyListInput = z.object({
   subDistrictId: z.string().nullable().optional(),
   isActive: z.enum(['T', 'F']).nullable().optional(),
   companyAlias: z.string().nullable().optional(),
-  // Sorting
   orderBys: z
     .array(
       z.object({
-        item1: z.string(), // column name
-        item2: z.boolean(), // true = ascending
+        item1: z.string(),
+        item2: z.boolean(),
       }),
     )
     .optional(),
 });
 
-// ── The router ──
+// ── Router ──
 export const companyRouter = router({
   list: protectedProcedure.input(companyListInput).query(async ({ ctx, input }) => {
     const { page, limit, ...body } = input;
 
-    const result = await backendFetch({
+    // backendFetch unwraps envelope → returns inner result
+    const result = await backendFetch<{ data: unknown[]; count: number }>({
       method: 'POST',
       path: qs.stringifyUrl({
-        url: '/company/sort/search',
+        url: '/organization-development/api/master-data/company/sort/search',
         query: { page, limit },
       }),
-
       body,
-      headers: {
-        Authorization: `Bearer ${ctx.accessToken}`,
-      },
+      headers: ctx.authHeaders,
       meta: getProcedureMeta('company.list'),
     });
 
-    const parsed = companyListEnvelope.parse(result);
+    // Contract drift check — validates each company against schema
+    const data = z.array(companySchema).parse(result.data);
 
-    if (!parsed.isSuccess) {
-      throw new Error(parsed.message ?? 'Failed to fetch companies');
-    }
-
-    return parsed.result;
+    return {
+      data,
+      count: result.count ?? 0,
+    };
   }),
 
   changeStatus: protectedProcedure
@@ -92,13 +85,10 @@ export const companyRouter = router({
       const result = await backendFetch({
         method: 'POST',
         path: qs.stringifyUrl({
-          url: '/company/changestatus',
+          url: '/organization-development/api/master-data/company/changestatus',
           query: { id: input.id, status: input.status },
         }),
-
-        headers: {
-          Authorization: `Bearer ${ctx.accessToken}`,
-        },
+        headers: ctx.authHeaders,
         meta: getProcedureMeta('company.changeStatus'),
       });
 
@@ -114,10 +104,8 @@ export const companyRouter = router({
     .mutation(async ({ ctx, input }) => {
       const result = await backendFetch({
         method: 'POST',
-        path: `/company/delete/${input.id}`,
-        headers: {
-          Authorization: `Bearer ${ctx.accessToken}`,
-        },
+        path: `/organization-development/api/master-data/company/delete/${input.id}`,
+        headers: ctx.authHeaders,
         meta: getProcedureMeta('company.remove'),
       });
 

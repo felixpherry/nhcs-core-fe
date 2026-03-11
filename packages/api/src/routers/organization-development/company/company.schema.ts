@@ -10,8 +10,11 @@ const dataHistorySchema = z.object({
   updatedDate: z.string().nullable(),
   updatedTime: z.string().nullable(),
   updatedName: z.string().nullable(),
-  createdBy: z.string().nullable(),
-  updatedBy: z.string().nullable(),
+  createdBy: z.string().nullable().optional(),
+  updatedBy: z.string().nullable().optional(),
+  createdAt: z.string().nullable().optional(),
+  updatedAt: z.string().nullable().optional(),
+  onChangeAt: z.string().nullable().optional(),
 });
 
 export const companySchema = dataHistorySchema.extend({
@@ -34,6 +37,8 @@ export const companySchema = dataHistorySchema.extend({
   subDistrictId: z.string().nullable(),
   subDistrictName: z.string().nullable(),
   isActive: z.enum(['T', 'F']).nullable(),
+  additionalAttributes: z.record(z.string(), z.unknown()).nullable().optional(),
+  additionalAttributesMaster: z.unknown().nullable().optional(),
 });
 
 export type Company = z.infer<typeof companySchema>;

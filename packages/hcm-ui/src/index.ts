@@ -96,3 +96,5 @@ export {
   type TableQueryInput,
   type TableQueryResult,
 } from './hooks/use-remote-table-query';
+
+export { useDataTable } from './hooks/use-data-table';

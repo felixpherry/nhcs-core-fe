@@ -2,7 +2,7 @@ import CryptoJS from 'crypto-js';
 import { publicProcedure, router } from '../../trpc';
 import { backendFetch } from '../../backend-fetch';
 import { registerProcedure, getProcedureMeta } from '@nhcs/registries';
-import { loginInputSchema, loginResponseSchema } from './auth.schema';
+import { loginInputSchema, loginResultDataSchema } from './auth.schema';
 import { createSession, destroySession } from '../../session-actions';
 
 registerProcedure('auth.login', {
@@ -28,7 +28,9 @@ function encryptPassword(password: string): string {
 
 export const authRouter = router({
   login: publicProcedure.input(loginInputSchema).mutation(async ({ input }) => {
-    const raw = await backendFetch({
+    // backendFetch auto-unwraps envelope
+    // Returns the inner result directly (user + token data)
+    const result = await backendFetch({
       method: 'POST',
       path: '/authentication/api/auth/login',
       body: {
@@ -41,19 +43,14 @@ export const authRouter = router({
       meta: getProcedureMeta('auth.login'),
     });
 
-    const parsed = loginResponseSchema.parse(raw);
+    const parsed = loginResultDataSchema.parse(result);
 
-    if (!parsed.isSuccess) {
-      throw new Error(parsed.message ?? 'Login failed');
-    }
-
-    // Store in encrypted cookie
-    await createSession(parsed.result);
+    await createSession(parsed);
 
     return {
-      userId: parsed.result.userId,
-      userName: parsed.result.userName,
-      userLevel: parsed.result.userLevel,
+      userId: parsed.userId,
+      userName: parsed.userName,
+      userLevel: parsed.userLevel,
     };
   }),
 
