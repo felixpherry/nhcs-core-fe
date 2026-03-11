@@ -72,7 +72,27 @@ export {
   type SortingState,
   type OrderBy,
   type SortMapping,
+  DataTable,
+  DataTableContent,
+  DataTableToolbar,
+  DataTableSearch,
+  DataTableActions,
+  DataTablePagination,
+  type DataTableProps,
+  StatusBadgeCell,
+  DateCell,
+  NumberCell,
 } from './components/data-table';
 
 // Utilities
 export { cn } from './lib/utils';
+
+// Remote table query
+export {
+  useRemoteTableQuery,
+  buildTableInput,
+  type UseRemoteTableQueryOptions,
+  type UseRemoteTableQueryReturn,
+  type TableQueryInput,
+  type TableQueryResult,
+} from './hooks/use-remote-table-query';
