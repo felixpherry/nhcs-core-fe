@@ -22,7 +22,7 @@ export interface FormBuilderProps<TForm extends Record<string, unknown>> {
 // ── Component ──
 
 export function FormBuilder<TForm extends Record<string, unknown>>(props: FormBuilderProps<TForm>) {
-  const { nodes, values, errors = {}, mode = 'create', disabled = false, onChange, onBlur } = props;
+  const { nodes, values, mode = 'create', onChange } = props;
 
   const ctx: FormBuilderContext<TForm> = {
     values,
