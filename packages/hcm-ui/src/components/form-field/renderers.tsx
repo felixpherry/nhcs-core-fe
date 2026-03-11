@@ -19,6 +19,7 @@ import type {
 // ── Shared props passed to every renderer ──
 
 export interface RendererProps {
+  id: string;
   value: unknown;
   onChange: (value: unknown) => void;
   onBlur: () => void;
@@ -32,6 +33,7 @@ export interface RendererProps {
 export function renderText(config: TextFieldConfig, props: RendererProps): ReactNode {
   return (
     <Input
+      id={props.id}
       type={config.type === 'password' ? 'password' : 'text'}
       value={(props.value as string) ?? ''}
       onChange={(e) => props.onChange(e.target.value)}
@@ -51,6 +53,7 @@ export function renderText(config: TextFieldConfig, props: RendererProps): React
 export function renderNumber(config: NumberFieldConfig, props: RendererProps): ReactNode {
   return (
     <Input
+      id={props.id}
       type="number"
       value={props.value === null || props.value === undefined ? '' : String(props.value)}
       onChange={(e) => {
@@ -78,7 +81,7 @@ export function renderSelect(config: SelectFieldConfig, props: RendererProps): R
       onValueChange={(val) => props.onChange(val)}
       disabled={props.disabled || props.readOnly}
     >
-      <SelectTrigger aria-invalid={props.hasError}>
+      <SelectTrigger id={props.id} aria-invalid={props.hasError}>
         <SelectValue placeholder={config.placeholder ?? 'Select...'} />
       </SelectTrigger>
       <SelectContent>
@@ -98,6 +101,7 @@ export function renderCheckbox(config: CheckboxFieldConfig, props: RendererProps
   return (
     <div className="flex items-center gap-2">
       <Checkbox
+        id={props.id}
         checked={!!props.value}
         onCheckedChange={(checked) => props.onChange(checked)}
         onBlur={props.onBlur}
@@ -115,6 +119,7 @@ export function renderSwitch(config: SwitchFieldConfig, props: RendererProps): R
   return (
     <div className="flex items-center gap-2">
       <Switch
+        id={props.id}
         checked={!!props.value}
         onCheckedChange={(checked) => props.onChange(checked)}
         disabled={props.disabled || props.readOnly}
@@ -130,6 +135,7 @@ export function renderSwitch(config: SwitchFieldConfig, props: RendererProps): R
 export function renderTextarea(config: TextareaFieldConfig, props: RendererProps): ReactNode {
   return (
     <Textarea
+      id={props.id}
       value={(props.value as string) ?? ''}
       onChange={(e) => props.onChange(e.target.value)}
       onBlur={props.onBlur}
@@ -149,6 +155,7 @@ export function renderDate(config: DateFieldConfig, props: RendererProps): React
   return (
     <Input
       type="date"
+      id={props.id}
       value={(props.value as string) ?? ''}
       onChange={(e) => props.onChange(e.target.value)}
       onBlur={props.onBlur}

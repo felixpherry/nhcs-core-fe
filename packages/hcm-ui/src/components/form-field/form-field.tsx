@@ -73,6 +73,7 @@ export function FormField<TForm extends Record<string, unknown>>(props: FormFiel
   // ── Renderer props ──
 
   const rendererProps: RendererProps = {
+    id: config.id,
     value,
     onChange,
     onBlur,
