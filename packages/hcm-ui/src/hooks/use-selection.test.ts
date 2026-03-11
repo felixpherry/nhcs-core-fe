@@ -175,6 +175,97 @@ describe('useSelection', () => {
     });
   });
 
+  // ── isAllSelected / isPartiallySelected ──
+
+  describe('isAllSelected and isPartiallySelected', () => {
+    it('isAllSelected returns false when empty', () => {
+      const { result } = renderHook(() => useSelection({ mode: 'multi' }));
+
+      expect(result.current.state.isAllSelected(['a', 'b', 'c'])).toBe(false);
+    });
+
+    it('isAllSelected returns true when all keys are selected', () => {
+      const { result } = renderHook(() =>
+        useSelection({ mode: 'multi', initialKeys: ['a', 'b', 'c'] }),
+      );
+
+      expect(result.current.state.isAllSelected(['a', 'b', 'c'])).toBe(true);
+    });
+
+    it('isAllSelected returns false when only some keys are selected', () => {
+      const { result } = renderHook(() =>
+        useSelection({ mode: 'multi', initialKeys: ['a'] }),
+      );
+
+      expect(result.current.state.isAllSelected(['a', 'b', 'c'])).toBe(false);
+    });
+
+    it('isAllSelected returns false for empty allKeys', () => {
+      const { result } = renderHook(() =>
+        useSelection({ mode: 'multi', initialKeys: ['a'] }),
+      );
+
+      expect(result.current.state.isAllSelected([])).toBe(false);
+    });
+
+    it('isPartiallySelected returns false when empty', () => {
+      const { result } = renderHook(() => useSelection({ mode: 'multi' }));
+
+      expect(result.current.state.isPartiallySelected(['a', 'b', 'c'])).toBe(false);
+    });
+
+    it('isPartiallySelected returns true when some but not all are selected', () => {
+      const { result } = renderHook(() =>
+        useSelection({ mode: 'multi', initialKeys: ['a'] }),
+      );
+
+      expect(result.current.state.isPartiallySelected(['a', 'b', 'c'])).toBe(true);
+    });
+
+    it('isPartiallySelected returns false when all are selected', () => {
+      const { result } = renderHook(() =>
+        useSelection({ mode: 'multi', initialKeys: ['a', 'b', 'c'] }),
+      );
+
+      expect(result.current.state.isPartiallySelected(['a', 'b', 'c'])).toBe(false);
+    });
+
+    it('isPartiallySelected returns false for empty allKeys', () => {
+      const { result } = renderHook(() =>
+        useSelection({ mode: 'multi', initialKeys: ['a'] }),
+      );
+
+      expect(result.current.state.isPartiallySelected([])).toBe(false);
+    });
+
+    it('updates correctly after toggleRow', () => {
+      const { result } = renderHook(() => useSelection({ mode: 'multi' }));
+      const allKeys = ['a', 'b', 'c'];
+
+      act(() => result.current.toggleRow('a'));
+      expect(result.current.state.isPartiallySelected(allKeys)).toBe(true);
+      expect(result.current.state.isAllSelected(allKeys)).toBe(false);
+
+      act(() => result.current.toggleRow('b'));
+      act(() => result.current.toggleRow('c'));
+      expect(result.current.state.isPartiallySelected(allKeys)).toBe(false);
+      expect(result.current.state.isAllSelected(allKeys)).toBe(true);
+    });
+
+    it('updates correctly after toggleAll', () => {
+      const { result } = renderHook(() => useSelection({ mode: 'multi' }));
+      const allKeys = ['a', 'b', 'c'];
+
+      act(() => result.current.toggleAll(allKeys));
+      expect(result.current.state.isAllSelected(allKeys)).toBe(true);
+      expect(result.current.state.isPartiallySelected(allKeys)).toBe(false);
+
+      act(() => result.current.toggleAll(allKeys));
+      expect(result.current.state.isAllSelected(allKeys)).toBe(false);
+      expect(result.current.state.isPartiallySelected(allKeys)).toBe(false);
+    });
+  });
+
   // ── Callback ──
 
   describe('onSelectionChange callback', () => {
