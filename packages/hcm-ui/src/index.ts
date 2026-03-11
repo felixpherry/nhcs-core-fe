@@ -12,3 +12,9 @@ export {
 } from './hooks/use-field-visibility';
 
 export { useFilter, type UseFilterOptions, type UseFilterReturn } from './hooks/use-filter';
+
+// UI primitives
+export * from './components/ui';
+
+// Utilities
+export { cn } from './lib/utils';
