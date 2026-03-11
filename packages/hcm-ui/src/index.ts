@@ -59,8 +59,20 @@ export {
   type FormMode,
 } from './hooks/use-crud-form';
 
-// Utilities
-export { cn } from './lib/utils';
-
 // CRUD sheet
 export { CrudSheet, type CrudSheetProps } from './components/crud-sheet';
+
+// DataTable system
+export {
+  createColumns,
+  type ColumnConfig,
+  type BuiltInCellType,
+  sortingToOrderBys,
+  buildSortMapping,
+  type SortingState,
+  type OrderBy,
+  type SortMapping,
+} from './components/data-table';
+
+// Utilities
+export { cn } from './lib/utils';
