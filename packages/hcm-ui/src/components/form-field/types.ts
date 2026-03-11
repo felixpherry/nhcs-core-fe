@@ -42,6 +42,9 @@ export interface FormFieldConfigBase<
   disabled?: boolean;
   /** Is this field read-only? (view mode) */
   readOnly?: boolean;
+  /** Reset field value to default when hidden (visible→hidden transition).
+   *  Default: true for filters, false for forms. (§7.1/§6.3.1) */
+  resetOnHide?: boolean;
 
   // ── Conditional logic ──
 
@@ -107,11 +110,34 @@ export interface SelectFieldConfig<
   options: FieldOption[];
 }
 
+// ── Paginated result for async combobox ──
+
+export interface PaginatedFieldOptions {
+  options: FieldOption[];
+  nextCursor: unknown;
+}
+
+// ── Params passed to async combobox queryFn ──
+
+export interface AsyncComboboxQueryParams<
+  TForm extends Record<string, unknown> = Record<string, unknown>,
+> {
+  /** Current search string */
+  search: string;
+  /** Current form values — for dependent lookups */
+  values?: Partial<TForm>;
+  /** Cursor for infinite scroll pagination */
+  pageParam?: unknown;
+}
+
 export interface AsyncComboboxFieldConfig<
   TForm extends Record<string, unknown> = Record<string, unknown>,
 > extends FormFieldConfigBase<TForm> {
   type: 'async-combobox';
-  queryFn: (search: string) => Promise<FieldOption[]>;
+  /** Fetch options — supports simple list or paginated cursor-based responses (§7.1) */
+  queryFn: (
+    params: AsyncComboboxQueryParams<TForm>,
+  ) => Promise<FieldOption[] | PaginatedFieldOptions>;
   debounceMs?: number;
 }
 
