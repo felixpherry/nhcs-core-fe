@@ -135,3 +135,4 @@ export {
   TreeTableActions,
   type TreeTableProps,
 } from './components/tree-table';
+export { ConfirmDialog, type ConfirmDialogProps } from './components/confirm-dialog';
