@@ -40,3 +40,13 @@ export {
   TableRow,
 } from './table';
 export { Badge, badgeVariants } from './badge';
+export { Popover, PopoverTrigger, PopoverContent, PopoverAnchor } from './popover';
+export {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from './command';
