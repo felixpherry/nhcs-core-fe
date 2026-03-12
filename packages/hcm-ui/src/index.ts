@@ -149,3 +149,4 @@ export type {
 } from './hooks/use-workflow-actions';
 export { WorkflowModalFooter, type WorkflowModalFooterProps } from './components/workflow-modal';
 export { ActionInputDialog, type ActionInputDialogProps } from './components/workflow-modal';
+export { PageHeader, type PageHeaderProps, type BreadcrumbItem } from './components/page-header';
