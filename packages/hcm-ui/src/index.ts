@@ -113,3 +113,5 @@ export {
   type UseDataTableOptions,
   type UseDataTableReturn,
 } from './hooks/use-data-table';
+
+export { useDebounce } from './hooks/use-debounce';
