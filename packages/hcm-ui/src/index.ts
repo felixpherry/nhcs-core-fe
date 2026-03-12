@@ -127,3 +127,11 @@ export type {
   UseTreeTableOptions,
   UseTreeTableReturn,
 } from './hooks/use-tree-table';
+
+export {
+  TreeTable,
+  TreeTableToolbar,
+  TreeTableSearch,
+  TreeTableActions,
+  type TreeTableProps,
+} from './components/tree-table';
