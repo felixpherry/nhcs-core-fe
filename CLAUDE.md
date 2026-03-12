@@ -27,21 +27,48 @@ packages/
         ├── components/
         │   ├── data-table/     # DataTable compound component
         │   │   ├── data-table.tsx        # DataTable, DataTableContent, DataTablePagination, DataTableToolbar, etc.
-        │   │   └── column-types.ts       # createColumns, ColumnConfig, sortingToOrderBys
+        │   │   ├── column-types.ts       # createColumns, ColumnConfig, sortingToOrderBys
+        │   │   └── cell-renderers.tsx    # StatusBadgeCell, DateCell, NumberCell
         │   ├── filter-panel/   # FilterPanel compound component
         │   │   ├── filter-panel.tsx      # FilterPanel, FilterPanelFields, FilterPanelActions, FilterPanelFieldToggle
         │   │   └── index.ts             # Barrel export
-        │   └── form-field/     # Form field components & types
-        │       ├── types.ts             # FormFieldConfig union, FieldOption, AsyncComboboxQueryParams, PaginatedFieldOptions
-        │       ├── form-field.tsx        # FormField renderer (delegates to renderers.tsx)
-        │       └── renderers.tsx         # Individual field type renderers
+        │   ├── form-field/     # Form field components & types
+        │   │   ├── types.ts             # FormFieldConfig union, FieldOption, MultiDisplayMode, AsyncComboboxQueryParams, PaginatedFieldOptions
+        │   │   ├── form-field.tsx        # FormField renderer (delegates to renderers.tsx + AsyncComboboxField)
+        │   │   ├── renderers.tsx         # Individual field type renderers (text, number, select, checkbox, switch, textarea, date)
+        │   │   └── async-combobox-field.tsx  # AsyncComboboxField component (single/multi mode, initialOptions, 3 display modes)
+        │   ├── chooser-dialog/  # ChooserDialog compound component
+        │   │   └── chooser-dialog.tsx   # Dialog shell for useChooser (confirm/cancel, tooltip-disabled, selection count)
+        │   ├── tree-table/      # TreeTable compound component
+        │   │   └── tree-table.tsx       # TreeTable, TreeTableToolbar, TreeTableSearch, TreeTableActions
+        │   └── ui/              # shadcn/ui primitives
+        │       ├── badge.tsx
+        │       ├── button.tsx
+        │       ├── card.tsx
+        │       ├── checkbox.tsx
+        │       ├── command.tsx          # cmdk Command (shadcn) — searchable keyboard-navigable list
+        │       ├── dialog.tsx
+        │       ├── input.tsx
+        │       ├── label.tsx
+        │       ├── popover.tsx          # Radix Popover (shadcn)
+        │       ├── select.tsx
+        │       ├── separator.tsx
+        │       ├── sheet.tsx
+        │       ├── switch.tsx
+        │       ├── table.tsx
+        │       ├── textarea.tsx
+        │       ├── tooltip.tsx          # Radix Tooltip (shadcn)
+        │       └── index.ts
         ├── hooks/
         │   ├── use-data-table.ts         # Core table state hook (pagination, sorting, visibility, selection)
         │   ├── use-remote-table-query.ts # Syncs tRPC query result → useDataTable (+ buildTableInput helper)
         │   ├── use-selection.ts          # Row selection state (multi/single mode)
         │   ├── use-crud-form.ts          # CRUD form sheet state management
         │   ├── use-filter.ts             # Filter state management
-        │   └── use-field-visibility.ts   # Field visibility toggle with localStorage persistence
+        │   ├── use-field-visibility.ts   # Field visibility toggle with localStorage persistence
+        │   ├── use-debounce.ts           # Debounce a value by N ms (used by AsyncComboboxField)
+        │   ├── use-chooser.ts            # Modal selection dialog lifecycle (open/close, snapshot/revert, row cache, mapSelected)
+        │   └── use-tree-table.ts         # Tree flattening, expand/collapse, selection policies, search highlight/filter
         └── index.ts             # Public exports
 ```
 
@@ -60,7 +87,7 @@ packages/
 11. **Auth headers** — backend expects `Authorization: Bearer {token}` + `user-id: {userId}_{accessId}_{userLevel}`.
 12. **Login/logout use publicProcedure** — auth routes don't require session context.
 
-## hcm-ui Architecture (Design Doc v4.2)
+## hcm-ui Architecture (Design Doc v4.4)
 
 ### useDataTable
 
@@ -88,7 +115,7 @@ Void hook that syncs a tRPC query result into a `useDataTable` instance via `_se
 ```ts
 useRemoteTableQuery({
   table,
-  queryResult: trpcQuery,    // { data, isLoading, isFetching }
+  queryResult: trpcQuery, // { data, isLoading, isFetching }
   extractData: (res) => ({ data: res.data, totalCount: res.count }),
 });
 ```
@@ -100,7 +127,7 @@ useRemoteTableQuery({
 Row selection state (multi/single mode). Always called unconditionally inside useDataTable (Rules of Hooks).
 
 - `isAllSelected(allKeys)` and `isPartiallySelected(allKeys)` are **methods** (not booleans) — they need the full key list to compute.
-- `toggleRow(key)`, `toggleAll(allKeys)`, `clear()` for mutations.
+- `toggleRow(key)`, `toggleAll(allKeys)`, `clear()`, `selectKeys(keys)`, `replaceSelection(keys)` for mutations.
 - `state.selectedKeys`, `state.count`, `state.isEmpty` for reading.
 
 ### useFilter
@@ -112,16 +139,16 @@ const filter = useFilter({
   defaultValues: { code: '', name: '', status: '' as Flag },
 });
 
-filter.draft          // Current draft values (user is editing)
-filter.applied        // Applied filter values (sent to backend)
-filter.isDirty        // Draft differs from applied
-filter.activeCount    // Number of non-default applied filters
-filter.hasActiveFilters
-filter.setDraftFieldValue('code', 'ACM')
-filter.applyDraft()   // Draft → Applied
-filter.resetDraft()   // Applied → Draft (discard edits)
-filter.resetApplied() // Reset to defaults
-filter.resetFields(['code', 'name'])  // Reset specific fields to defaults
+filter.draft; // Current draft values (user is editing)
+filter.applied; // Applied filter values (sent to backend)
+filter.isDirty; // Draft differs from applied
+filter.activeCount; // Number of non-default applied filters
+filter.hasActiveFilters;
+filter.setDraftFieldValue('code', 'ACM');
+filter.applyDraft(); // Draft → Applied
+filter.resetDraft(); // Applied → Draft (discard edits)
+filter.resetApplied(); // Reset to defaults
+filter.resetFields(['code', 'name']); // Reset specific fields to defaults
 ```
 
 ### useFieldVisibility
@@ -132,172 +159,192 @@ Field visibility toggle with localStorage persistence:
 const visibility = useFieldVisibility({
   scopeKey: 'company-filter',
   allFieldIds: ['code', 'name', 'status'],
-  defaultVisibleFieldIds: ['code', 'name'],  // optional
-  onFieldsHidden: (ids) => filter.resetFields(ids),  // resetOnHide wiring
+  defaultVisibleFieldIds: ['code', 'name'], // optional
+  onFieldsHidden: (ids) => filter.resetFields(ids), // resetOnHide wiring
 });
 
-visibility.visibleIds     // Set<string>
-visibility.isVisible(id)  // boolean
-visibility.toggle(id)     // show/hide
-visibility.showAll()
-visibility.hideAll()
-visibility.totalCount     // total number of fields
-visibility.areAllVisible  // boolean
+visibility.visibleIds; // Set<string>
+visibility.isVisible(id); // boolean
+visibility.toggle(id); // show/hide
+visibility.showAll();
+visibility.hideAll();
+visibility.totalCount; // total number of fields
+visibility.areAllVisible; // boolean
 ```
 
-### FilterPanel Compound Component
+### useDebounce
+
+Tiny hook that delays a value by N ms. Used internally by AsyncComboboxField.
+
+```ts
+const debouncedSearch = useDebounce(search, 300);
+```
+
+Returns the latest value only after `delay` ms of inactivity. Uses `useState` + `useEffect` + `setTimeout` with cleanup.
+
+### AsyncComboboxField (Design Doc v4.4 §7.1)
+
+Fully implemented async-combobox renderer. Replaces the old placeholder in form-field.tsx.
+
+- **Two modes:** `mode: 'single'` (close-on-select, string value) or `mode: 'multi'` (stay-open, checkmarks, string[] value)
+- **Three multi display modes:** `multiDisplayMode: 'count' | 'inline-chips' | 'chips-below'`
+  - `count`: "3 items selected" — clean, no overflow
+  - `inline-chips`: chips inside trigger with × on hover, overflow shows "+N more"
+  - `chips-below`: trigger shows "N selected", chips in wrap area below trigger
+- **initialOptions:** Pre-resolved option(s) seeded into internal `Map<string, FieldOption>` cache. Solves cold-start label problem (e.g., item on page 10 of paginated list). Fetched options merge in, de-dup by value, fetched wins on conflict.
+- **showToggleAll:** Optional button in multi-mode popup. Operates on visible (filtered) options only. Respects maxSelections.
+- **maxSelections:** Visually disables remaining unselected options when limit reached.
+- **Debounced search:** `useDebounce(search, debounceMs)` → queryKey changes → useQuery fires.
+- **shouldFilter={false}** on Command — server does filtering via queryFn, not cmdk client-side.
+- **Dependency gating:** `isQueryEnabled` + dependency values in queryKey for automatic refetch.
+- **Query only fires when popup is open:** `enabled: queryEnabled && open`.
+
+### useChooser
+
+Modal selection dialog lifecycle hook. Manages open/close, snapshot/revert on cancel, row object cache, and projected results.
+
+```ts
+const chooser = useChooser<Company, CompanyFormValue>({
+  mode: 'single',
+  required: true,
+  rowKey: (row) => String(row.id),
+  mapSelected: (row) => ({ id: row.id, code: row.code, name: row.name }),
+  onConfirm: (result) => {
+    /* result.selectedKeys, result.selectedItems */
+  },
+});
+
+chooser.open(['1']); // Open with preselected keys
+chooser.cancel(); // Revert selection to pre-open snapshot
+chooser.confirm(); // Returns false if required + empty
+chooser.canConfirm; // Boolean for disabled button state
+chooser.selection; // UseSelectionReturn — pass to DataTable
+chooser.trackRows(rows); // Feed table data into row cache
+chooser.remove(key); // For external chip × buttons
+chooser.result; // Last confirmed ChooserResult<TValue> | null
+```
+
+- **rowKey** extracts unique string ID from TData. Used for ALL equality checks (string === string).
+- **mapSelected** projects TData → TValue. Called ONLY at confirm time. Never used for comparison.
+- **Row cache** (`Map<string, TData>`) accumulates rows via `trackRows()`. Cleared on each `open()`.
+- **Snapshot/revert:** `open()` snapshots current keys. `cancel()` restores via `replaceSelection()`.
+
+### ChooserDialog
+
+Thin dialog shell that wires `useChooser` to Radix Dialog. Consumer provides content (DataTable) as children.
+
+- Confirm button shows count: "Confirm (3)"
+- When `canConfirm: false`, confirm button is disabled with Tooltip: "Please select at least 1 item"
+- Dismissing dialog (overlay click, Escape) triggers cancel (revert)
+- No close × button — uses Cancel/Confirm explicitly
+
+### useTreeTable
+
+Tree flattening + expand/collapse + selection policies + search modes.
+
+```ts
+const treeTable = useTreeTable<Org>({
+  nodes: orgTree, // TreeNode<TData>[]
+  selectionPolicy: 'cascade', // 'independent' | 'cascade' | 'leaf-only' | SelectionPolicyFn
+  selectionMode: 'multi',
+  searchFn: (data, term) => data.name.includes(term),
+  searchMode: 'highlight', // 'highlight' | 'filter'
+});
+```
+
+**Selection policies:**
+
+- `independent` — each node independent, delegates to `selection.toggleRow()`
+- `cascade` — check selects self + all descendants + all ancestors. Uncheck deselects self + descendants, deselects ancestors if no siblings remain.
+- `leaf-only` — only leaf nodes (no children) can be selected
+- `SelectionPolicyFn` — custom function receives `{ toggledNode, wasSelected, selectedKeys, flatNodes, getAncestorIds, getDescendantIds }`, returns new `Set<string>`
+
+**Search modes:**
+
+- `highlight` — full tree visible, matched nodes get `isMatched: true`, ancestors auto-expand
+- `filter` — non-matching branches hidden, only matched + ancestor paths shown
+
+**Key outputs:** `flatNodes` (visible), `allFlatNodes` (all), `toggleNode()` (policy-aware), `toggleExpand()`, `expandAll()`, `collapseAll()`, `expandToNode()`, `getAncestorIds()`, `getDescendantIds()`
+
+### TreeTable Component
+
+Renders `flatNodes` from useTreeTable as a table with:
+
+- Indentation (first column only, `depth * indentPx`)
+- Expand/collapse chevron toggles (rotates 90° on expand)
+- Selection checkboxes calling `toggleNode` (policy-aware, NOT `toggleRow`)
+- Search highlight via `matchHighlightClass` + `data-matched` / `data-on-match-path` attributes
+- No sorting (tree order is structural), no pagination (full tree loaded)
+- Subcomponents: `TreeTableToolbar`, `TreeTableSearch`, `TreeTableActions`
+
+### FormField Types (Design Doc v4.4 §7.1)
+
+All field configs extend `FormFieldConfigBase<TForm>`. The union is `FormFieldConfig<TForm>`:
+
+- **TextFieldConfig** — text/password with optional min/maxLength
+- **NumberFieldConfig** — min, max, step
+- **SelectFieldConfig** — static `options: FieldOption[]`
+- **AsyncComboboxFieldConfig** — async options with queryFn, mode, multiDisplayMode, initialOptions, showToggleAll, maxSelections
+- **CheckboxFieldConfig** — checkboxLabel
+- **SwitchFieldConfig** — switchLabel
+- **TextareaFieldConfig** — rows, maxLength
+- **DateFieldConfig** — date picker
+- **CustomFieldConfig** — `render` function for fully custom fields
+
+**Conditional logic:** `visibleWhen`, `disabledWhen`, `requiredWhen` — all take `(values: TForm) => boolean`.
+
+**Dependency gating (async lookups):** `dependsOn`, `isQueryEnabled`, `onDependencyChange: 'clear' | 'refetch' | 'keep-if-valid'`.
+
+### useCrudForm
+
+CRUD form sheet state management using `useReducer` for predictable transitions:
+
+- States: `idle`, `loading`, `ready`, `submitting`, `submitted`
+- Actions: `open(mode)`, `close()`, `setLoading()`, `setReady(data)`, `submit()`, `submitSuccess()`, `submitError()`
+- Stale request guard: ignores responses from superseded open() calls
+
+### DataTable Component
+
+Compound component pattern:
 
 ```tsx
-<FilterPanel fields={filterFields} filter={filter} visibility={visibility}>
-  <div className="flex items-center justify-between">
-    <FilterPanelFieldToggle />
-    <FilterPanelActions />
-  </div>
-  <FilterPanelFields />
+<DataTable table={table}>
+  <DataTable.Toolbar>
+    <DataTable.Search />
+    <DataTable.Actions>...</DataTable.Actions>
+  </DataTable.Toolbar>
+  <DataTable.Content />
+  <DataTable.Pagination />
+</DataTable>
+```
+
+### FilterPanel Component
+
+Compound component for collapsible filter forms:
+
+```tsx
+<FilterPanel filter={filter}>
+  <FilterPanel.Fields visibility={visibility}>
+    {(visibleFields) => visibleFields.map(...)}
+  </FilterPanel.Fields>
+  <FilterPanel.Actions>
+    <FilterPanel.FieldToggle visibility={visibility} />
+  </FilterPanel.Actions>
 </FilterPanel>
 ```
 
-| Sub-component | Responsibility |
-|---|---|
-| `FilterPanel` | Root wrapper. Provides context (`fields`, `filter`, `visibility`) to children. |
-| `FilterPanelFields` | Renders visible fields in a responsive CSS grid via `FormField`. Binds to `filter.draft`. |
-| `FilterPanelActions` | Apply (disabled when `!isDirty`) + Reset (disabled when `!hasActiveFilters`) + active count `Badge`. |
-| `FilterPanelFieldToggle` | Collapsible checkbox list to toggle individual field visibility. Includes Show All / Hide All. |
-
-**resetOnHide wiring:** Pass `onFieldsHidden: (ids) => filter.resetFields(ids)` to `useFieldVisibility`. When a field is hidden, its draft value is immediately reset to default. FilterPanel doesn't own this — the hooks are composable.
-
-### DataTable Compound Component
-
-```tsx
-<DataTable table={table} onRowClick={handleClick}>
-  <DataTableToolbar>
-    <DataTableSearch value={search} onChange={setSearch} />
-    <DataTableActions><Button>Add</Button></DataTableActions>
-  </DataTableToolbar>
-</DataTable>
-<DataTablePagination table={table} />
-```
-
-- `DataTableContent` wraps the `<Table>` with `overflow-x-auto` for wide table support.
-- Selection checkboxes auto-render when `table.selection` is not null.
-- Sorting is triggered by clicking sortable column headers.
-
-### FormField Types (Design Doc v4.2 §7.1)
-
-`FormFieldConfig` is a discriminated union on `type`. Key types:
-
-- **`FormFieldConfigBase<TForm>`** — shared base: `name`, `label`, `placeholder`, `required`, `readOnly`, `visible`, `resetOnHide`, `colSpan`.
-  - `resetOnHide?: boolean` — reset to default when hidden. Default: `true` for filters, `false` for forms.
-- **`AsyncComboboxFieldConfig<TForm>`** — `type: 'async-combobox'`:
-  - `queryFn: (params: AsyncComboboxQueryParams<TForm>) => Promise<FieldOption[] | PaginatedFieldOptions>`
-  - `AsyncComboboxQueryParams<TForm>` — `{ search: string; values?: Partial<TForm>; pageParam?: unknown }`
-  - `PaginatedFieldOptions` — `{ options: FieldOption[]; nextCursor: unknown }`
-  - `debounceMs?: number`
-- Other types: `text`, `number`, `select`, `combobox`, `date`, `textarea`, `checkbox`, `flag`, `status-badge`
-
-**Note:** `async-combobox` renderer is not yet implemented — types are aligned, runtime is a placeholder.
-
-### Testing hcm-ui Hooks
-
-Tests use a `renderSeededTable` helper pattern:
-
-```ts
-function renderSeededTable(overrides?) {
-  const hookResult = renderHook(() => useDataTable<T>({ columns, getRowId, ...overrides }));
-  act(() => {
-    hookResult.result.current._setData(data, totalCount);
-    hookResult.result.current._setLoading(false, false);
-  });
-  return hookResult;
-}
-```
-
-For `useRemoteTableQuery`, compose both hooks inside a single `renderHook`:
-
-```ts
-const { result } = renderHook(() => {
-  const table = useDataTable({ columns, getRowId });
-  useRemoteTableQuery({ table, queryResult, extractData });
-  return table;
-});
-```
-
-For compound components like `FilterPanel`, use a **wrapper component** that calls hooks internally so everything lives in a single React tree:
-
-```tsx
-function TestFilterPanel(props: { onFilter?: UseFilterReturn }) {
-  const filter = useFilter({ defaultValues: { code: '', name: '' } });
-  const visibility = useFieldVisibility({
-    scopeKey: 'test',
-    allFieldIds: ['code', 'name'],
-    onFieldsHidden: (ids) => filter.resetFields(ids),
-  });
-
-  return (
-    <FilterPanel fields={fields} filter={filter} visibility={visibility}>
-      <FilterPanelActions />
-      <FilterPanelFields />
-      <FilterPanelFieldToggle />
-    </FilterPanel>
-  );
-}
-```
-
-## Backend API Patterns
-
-- List: `POST /entity/sort/search?page=X&limit=Y` with flat filter body + `orderBys`
-- Change status: `POST /entity/changestatus?id=X&status=T|F`
-- Delete: `POST /entity/delete/{id}`
-- Sort body uses `orderBys: [{ item1: string, item2: boolean }]`
-- Login: `POST /authentication/api/auth/login` with { userId, password (AES encrypted), browser, browserVersion, ipAddress }
-- Logout: `POST /authentication/api/auth/logout` with { accessId } + auth headers
-- Login response is FLAT — no nested token/user objects. Fields: userId, userName, userLevel, accessToken, accessId, refreshToken, fgEss, fgCore, fgMss (not a menuGroups array)
-- Login envelope is FLAT — { statusCode, isSuccess, isGranted, result, message, error } — no outer result wrapper
-
-## Auth
-
-- Password is AES-CBC encrypted server-side using AUTH_SECRET env var before sending to backend
-- encryptPassword uses zero IV, PKCS7 padding, CryptoJS
-- Login/logout use publicProcedure (no session required)
-- Auth headers for authenticated calls: `Authorization: Bearer {token}` + `user-id: {userId}_{accessId}_{userLevel}`
-
-## Frontend Patterns
-
-- Forms: TanStack Form + Zod validation + shadcn Field components
-- tRPC client: httpBatchLink with superjson transformer
-- tRPC route handler: `apps/web/src/app/api/trpc/[trpc]/route.ts`
-- Provider: TRPCProvider wraps app in layout.tsx (QueryClient + trpc.Provider)
-- Pages are thin server components, forms/interactive stuff uses 'use client'
-
-## Conventions
-
-- Commit messages: conventional commits (feat, fix, chore, refactor)
-- Package scope: `@nhcs/`
-- Workspace deps: `"workspace:*"`
-- Package manager: pnpm
-- Type imports: always use `import type` when importing types only
-
-## Old System Reference
-
-The old Nuxt 2 codebase is at `NHCS_Core` repo on the same GitHub account.
-Always compare new implementations with the old system — check types, routing,
-business logic, and API shapes against the existing codebase.
-
 ## TODOs
 
-- Move dataHistorySchema to @nhcs/types (shared across all domains)
-- Extract orderBys to @nhcs/types as shared schema
-- Refactor auth header construction into tRPC context layer (so protectedProcedure auto-attaches headers)
-- Refactor Field components for reusability across forms
-- Implement session management (store tokens after login)
-- Implement async-combobox renderer (types are aligned, runtime is placeholder)
+- Move `dataHistorySchema` from master-setting to `@nhcs/types` (shared across domain schemas)
+- Implement Phase 5: Workflow + Shared components (useWorkflowModal, WorkflowModal, StatusBadge, ConfirmDialog)
+- Implement Phase 6 (P2): Column pinning, grouped headers, expandable rows
 
 ## Testing Strategy
 
-- Testing Trophy (Kent C. Dodds): mostly integration, some unit, few E2E
-- Tools: Vitest + @testing-library/react + MSW (unit/integration), Playwright (E2E)
-- Tests are co-located: `useSelection.ts` → `useSelection.test.ts` (same folder)
-- Test in parallel: every hook/component gets tests built alongside it, not after
-- Mock only network boundaries (MSW for tRPC). Never mock child components. Never shallow render.
-- Coverage targets: ~90% hooks, ~95% utilities, ~70% components, ~80% routers, ~50% pages
-- CI: lint → typecheck → vitest → playwright
+- **Testing Trophy approach** (Kent C. Dodds): Vitest + RTL + MSW for unit/integration, Playwright for E2E
+- Co-located tests: each hook/component has `*.test.ts(x)` alongside it
+- Hooks tested with `renderHook` + `act`
+- Components tested with `render` + `userEvent` + mock data
+- Async components (useQuery): use real timers + `debounceMs: 0` in test configs. Avoid `vi.useFakeTimers()` with Radix/cmdk — causes timeouts.
+- QueryClientProvider wrapper for components that use `useQuery`
+- Mock `useChooser`/`useTreeTable` returns when testing ChooserDialog/TreeTable (isolate UI from hook logic)
