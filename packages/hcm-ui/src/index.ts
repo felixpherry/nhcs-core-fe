@@ -136,3 +136,5 @@ export {
   type TreeTableProps,
 } from './components/tree-table';
 export { ConfirmDialog, type ConfirmDialogProps } from './components/confirm-dialog';
+
+export { StatusBadge, type StatusBadgeProps, type BadgeVariant } from './components/status-badge';
