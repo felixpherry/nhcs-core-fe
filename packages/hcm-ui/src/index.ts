@@ -117,3 +117,13 @@ export {
 export { useDebounce } from './hooks/use-debounce';
 export { useChooser } from './hooks/use-chooser';
 export type { UseChooserOptions, UseChooserReturn, ChooserResult } from './hooks/use-chooser';
+export { useTreeTable } from './hooks/use-tree-table';
+export type {
+  TreeNode,
+  FlatTreeNode,
+  SearchMode,
+  SelectionPolicy,
+  SelectionPolicyFn,
+  UseTreeTableOptions,
+  UseTreeTableReturn,
+} from './hooks/use-tree-table';
