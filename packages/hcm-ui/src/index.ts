@@ -138,3 +138,12 @@ export {
 export { ConfirmDialog, type ConfirmDialogProps } from './components/confirm-dialog';
 
 export { StatusBadge, type StatusBadgeProps, type BadgeVariant } from './components/status-badge';
+export { useWorkflowActions } from './hooks/use-workflow-actions';
+export type {
+  WorkflowAction,
+  ActionConfirmStep,
+  ActionInputStep,
+  PipelineState,
+  UseWorkflowActionsOptions,
+  UseWorkflowActionsReturn,
+} from './hooks/use-workflow-actions';
