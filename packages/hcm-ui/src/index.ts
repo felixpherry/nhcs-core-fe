@@ -115,3 +115,5 @@ export {
 } from './hooks/use-data-table';
 
 export { useDebounce } from './hooks/use-debounce';
+export { useChooser } from './hooks/use-chooser';
+export type { UseChooserOptions, UseChooserReturn, ChooserResult } from './hooks/use-chooser';
