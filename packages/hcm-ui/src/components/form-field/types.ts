@@ -19,6 +19,14 @@ export interface FieldOption {
   value: string;
 }
 
+// ── Multi-select display mode (v4.4) ──
+
+/** Controls how multi-select values render in/around the trigger button.
+ *  - 'count': "3 items selected" — clean, no overflow
+ *  - 'inline-chips': chips inside trigger with × on hover, overflow shows "+N more"
+ *  - 'chips-below': trigger shows "N selected", chips in wrap area below trigger */
+export type MultiDisplayMode = 'count' | 'inline-chips' | 'chips-below';
+
 // ── Base config — shared by all field types ──
 
 export interface FormFieldConfigBase<
@@ -139,6 +147,32 @@ export interface AsyncComboboxFieldConfig<
     params: AsyncComboboxQueryParams<TForm>,
   ) => Promise<FieldOption[] | PaginatedFieldOptions>;
   debounceMs?: number;
+
+  // ── Selection mode (v4.3) ──
+
+  /** Selection behavior. Default: 'single' */
+  mode?: 'single' | 'multi';
+  /** Multi mode only — max selectable items. undefined = unlimited */
+  maxSelections?: number;
+
+  // ── Multi display mode (v4.4) ──
+
+  /** How multi-select values render in/around the trigger. Default: 'count' */
+  multiDisplayMode?: MultiDisplayMode;
+
+  // ── Initial options (v4.4) ──
+
+  /** Pre-resolved option(s) for display before fetch completes.
+   *  Single mode: FieldOption. Multi mode: FieldOption[].
+   *  Seeded into internal option cache on mount. Merged with fetched
+   *  options (de-dup by value, fetched wins on conflict). */
+  initialOptions?: FieldOption | FieldOption[];
+
+  // ── Toggle all (v4.4) ──
+
+  /** Show "Toggle All" button in multi-mode popup. Default: false.
+   *  Operates on VISIBLE (filtered) options only. Respects maxSelections. */
+  showToggleAll?: boolean;
 }
 
 export interface CheckboxFieldConfig<
