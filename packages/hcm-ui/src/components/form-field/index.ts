@@ -14,4 +14,7 @@ export type {
   DateFieldConfig,
   CustomFieldConfig,
   CustomFieldRenderProps,
+  AsyncComboboxQueryParams,
+  PaginatedFieldOptions,
+  MultiDisplayMode,
 } from './types';

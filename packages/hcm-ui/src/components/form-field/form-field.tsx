@@ -23,6 +23,8 @@ import type {
   TextareaFieldConfig,
   TextFieldConfig,
 } from './types';
+import { AsyncComboboxField } from './async-combobox-field';
+import type { AsyncComboboxFieldConfig } from './types';
 
 // ── Props ──
 
@@ -123,7 +125,18 @@ export function FormField<TForm extends Record<string, unknown>>(props: FormFiel
       break;
     }
     case 'async-combobox':
-      fieldContent = <div>async-combobox (not yet implemented)</div>;
+      fieldContent = (
+        <AsyncComboboxField
+          config={config as AsyncComboboxFieldConfig<TForm>}
+          value={value}
+          onChange={onChange}
+          onBlur={onBlur}
+          disabled={isDisabled}
+          readOnly={isReadOnly ?? false}
+          hasError={hasError}
+          formValues={formValues}
+        />
+      );
       break;
   }
 
