@@ -279,17 +279,26 @@ export function AsyncComboboxField<TForm extends Record<string, unknown>>({
             {visible.map((val) => (
               <Badge key={val} variant="secondary" className="group/chip gap-0.5 pr-0.5">
                 {resolveLabel(val)}
-                <button
-                  type="button"
+                <span
+                  role="button"
+                  tabIndex={0}
                   className="ml-0.5 rounded-full p-0.5 opacity-0 transition-opacity hover:bg-muted-foreground/20 group-hover/chip:opacity-100"
                   onClick={(e) => {
                     e.stopPropagation();
+                    e.preventDefault();
                     handleRemoveChip(val);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      handleRemoveChip(val);
+                    }
                   }}
                   aria-label={`Remove ${resolveLabel(val)}`}
                 >
                   <XIcon className="size-3" />
-                </button>
+                </span>
               </Badge>
             ))}
             {overflowCount > 0 && (
@@ -320,17 +329,26 @@ export function AsyncComboboxField<TForm extends Record<string, unknown>>({
         {keys.map((val) => (
           <Badge key={val} variant="secondary" className="group/chip gap-0.5 pr-0.5">
             {resolveLabel(val)}
-            <button
-              type="button"
+            <span
+              role="button"
+              tabIndex={0}
               className="ml-0.5 rounded-full p-0.5 opacity-0 transition-opacity hover:bg-muted-foreground/20 group-hover/chip:opacity-100"
               onClick={(e) => {
                 e.stopPropagation();
+                e.preventDefault();
                 handleRemoveChip(val);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  handleRemoveChip(val);
+                }
               }}
               aria-label={`Remove ${resolveLabel(val)}`}
             >
               <XIcon className="size-3" />
-            </button>
+            </span>
           </Badge>
         ))}
       </div>
