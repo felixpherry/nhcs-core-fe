@@ -147,3 +147,5 @@ export type {
   UseWorkflowActionsOptions,
   UseWorkflowActionsReturn,
 } from './hooks/use-workflow-actions';
+export { WorkflowModalFooter, type WorkflowModalFooterProps } from './components/workflow-modal';
+export { ActionInputDialog, type ActionInputDialogProps } from './components/workflow-modal';
