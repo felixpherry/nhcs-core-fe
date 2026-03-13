@@ -273,13 +273,13 @@ export function AsyncComboboxField<TForm extends Record<string, unknown>>({
 
       case 'inline-chips': {
         const keys = Array.from(selectionState.selectedKeys);
-        const maxVisible = 3;
+        const maxVisible = chipsExpanded ? keys.length : 3;
         const visible = keys.slice(0, maxVisible);
         const overflowCount = keys.length - maxVisible;
         return (
           <span className="flex flex-wrap items-center gap-1 overflow-hidden">
             {visible.map((val) => (
-              <Badge key={val} variant="secondary" className="group/chip gap-0.5 pr-0.5">
+              <Badge key={val} variant="default" className="group/chip gap-0.5 pr-0.5">
                 {resolveLabel(val)}
                 <span
                   role="button"
@@ -303,7 +303,7 @@ export function AsyncComboboxField<TForm extends Record<string, unknown>>({
                 </span>
               </Badge>
             ))}
-            {overflowCount > 0 && (
+            {
               <span
                 role="button"
                 tabIndex={0}
@@ -311,70 +311,23 @@ export function AsyncComboboxField<TForm extends Record<string, unknown>>({
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  setChipsExpanded(true);
+                  setChipsExpanded((v) => !v);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.stopPropagation();
                     e.preventDefault();
-                    setChipsExpanded(true);
+                    setChipsExpanded((v) => !v);
                   }
                 }}
               >
-                +{overflowCount} more
+                {overflowCount > 0 ? `+${overflowCount} more` : 'Show less'}
               </span>
-            )}
+            }
           </span>
         );
       }
     }
-  }
-
-  // ── Render: Chips below trigger (for chips-below mode) ──
-
-  function renderChipsBelow() {
-    if (!isMulti || multiDisplayMode !== 'inline-chips' || !chipsExpanded || selectedCount === 0) {
-      return null;
-    }
-
-    const keys = Array.from(selectionState.selectedKeys);
-
-    return (
-      <div className="flex flex-wrap items-center gap-1 pt-1">
-        {keys.map((val) => (
-          <Badge key={val} variant="secondary" className="group/chip gap-0.5 pr-0.5">
-            {resolveLabel(val)}
-            <span
-              role="button"
-              tabIndex={0}
-              className="ml-0.5 rounded-full p-0.5 opacity-0 transition-opacity hover:bg-muted-foreground/20 group-hover/chip:opacity-100"
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                handleRemoveChip(val);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  handleRemoveChip(val);
-                }
-              }}
-              aria-label={`Remove ${resolveLabel(val)}`}
-            >
-              <XIcon className="size-3" />
-            </span>
-          </Badge>
-        ))}
-        <button
-          type="button"
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors underline"
-          onClick={() => setChipsExpanded(false)}
-        >
-          Show less
-        </button>
-      </div>
-    );
   }
 
   // ── Render ──
@@ -391,7 +344,7 @@ export function AsyncComboboxField<TForm extends Record<string, unknown>>({
             aria-invalid={hasError}
             disabled={disabled || readOnly}
             className={cn(
-              'w-full justify-between font-normal',
+              'w-full justify-between font-normal h-auto min-h-8 py-1.5',
               !selectedCount && 'text-muted-foreground',
             )}
             onClick={() => onBlur()}
@@ -401,7 +354,7 @@ export function AsyncComboboxField<TForm extends Record<string, unknown>>({
           </Button>
         </PopoverTrigger>
 
-        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <PopoverContent className=" w-(--radix-popover-trigger-width) p-0" align="start">
           <Command shouldFilter={false}>
             <CommandInput
               placeholder={`Search ${config.label.toLowerCase()}...`}
@@ -411,14 +364,14 @@ export function AsyncComboboxField<TForm extends Record<string, unknown>>({
 
             {/* Toggle All button (multi mode only) */}
             {isMulti && showToggleAll && visibleOptions.length > 0 && (
-              <div className="border-b px-2 py-1.5">
+              <div className="flex items-center justify-between border-b px-2 py-1.5">
                 <button
                   type="button"
                   className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                   onClick={handleToggleAll}
                 >
                   {selectionState.isAllSelected(visibleOptions.map((o) => o.value))
-                    ? 'Deselect all'
+                    ? 'Clear'
                     : 'Select all'}
                 </button>
               </div>
@@ -426,7 +379,6 @@ export function AsyncComboboxField<TForm extends Record<string, unknown>>({
 
             <CommandList>
               <CommandEmpty>{isLoading ? 'Loading...' : 'No results found.'}</CommandEmpty>
-
               <CommandGroup>
                 {visibleOptions.map((option) => {
                   const isSelected = selectionState.isSelected(option.value);
@@ -437,12 +389,12 @@ export function AsyncComboboxField<TForm extends Record<string, unknown>>({
                       key={option.value}
                       value={option.value}
                       disabled={isDisabledOption}
-                      data-checked={isSelected}
                       onSelect={() => {
                         if (!isDisabledOption) {
                           toggleRow(option.value);
                         }
                       }}
+                      data-checked={isMulti ? undefined : isSelected}
                     >
                       {isMulti && (
                         <div
@@ -450,7 +402,7 @@ export function AsyncComboboxField<TForm extends Record<string, unknown>>({
                             'mr-1 flex size-4 items-center justify-center rounded-sm border border-primary',
                             isSelected
                               ? 'bg-primary text-primary-foreground'
-                              : 'opacity-50 [&_svg]:invisible',
+                              : '[&_svg]:invisible opacity-50',
                           )}
                         >
                           <CheckIcon className="size-3" />
@@ -465,8 +417,6 @@ export function AsyncComboboxField<TForm extends Record<string, unknown>>({
           </Command>
         </PopoverContent>
       </Popover>
-
-      {renderChipsBelow()}
     </div>
   );
 }

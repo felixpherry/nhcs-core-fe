@@ -142,26 +142,6 @@ export const MultiInlineChips: StoryObj = {
   ),
 };
 
-export const MultiInlineChipsWithOverflow: StoryObj = {
-  name: 'Multi Inline Chips — Expand/Collapse',
-  render: () => (
-    <AsyncComboboxStory
-      config={{
-        id: 'companies',
-        name: 'companies',
-        label: 'Companies (select 4+ to see expand)',
-        type: 'async-combobox',
-        mode: 'multi',
-        multiDisplayMode: 'inline-chips',
-        showToggleAll: true,
-        queryFn: mockQueryFn,
-        initialOptions: mockCompanies.slice(0, 6),
-      }}
-      initialValue={['1', '2', '3', '4', '5', '6']}
-    />
-  ),
-};
-
 export const MultiWithMaxSelections: StoryObj = {
   render: () => (
     <AsyncComboboxStory

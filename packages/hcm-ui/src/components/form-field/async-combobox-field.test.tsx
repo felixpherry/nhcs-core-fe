@@ -470,6 +470,39 @@ describe('AsyncComboboxField', () => {
 
       expect(screen.queryByText('Select all')).not.toBeInTheDocument();
     });
+
+    it('shows "Clear" button when items are selected', async () => {
+      const props = defaultProps();
+
+      renderWithQuery(
+        <AsyncComboboxField
+          config={createConfig({ mode: 'multi', showToggleAll: true })}
+          {...props}
+        />,
+      );
+
+      await openAndWaitForOptions();
+      await user.click(screen.getByText('Acme Corp'));
+
+      expect(screen.getByText('Clear')).toBeInTheDocument();
+    });
+
+    it('clears all selections when Clear is clicked', async () => {
+      const props = defaultProps();
+
+      renderWithQuery(
+        <AsyncComboboxField
+          config={createConfig({ mode: 'multi', showToggleAll: true })}
+          {...props}
+        />,
+      );
+
+      await openAndWaitForOptions();
+      await user.click(screen.getByText('Acme Corp'));
+      await user.click(screen.getByText('Clear'));
+
+      expect(props.onChange).toHaveBeenLastCalledWith([]);
+    });
   });
 
   // ────────────────────────────────────────
