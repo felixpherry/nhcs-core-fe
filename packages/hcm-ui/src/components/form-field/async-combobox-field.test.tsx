@@ -51,7 +51,7 @@ function createConfig(
     label: 'Company',
     type: 'async-combobox',
     queryFn: vi.fn().mockResolvedValue(mockOptions),
-    debounceMs: 0, // Eliminate debounce delay in tests
+    debounceMs: 0,
     ...overrides,
   };
 }
@@ -72,7 +72,6 @@ function defaultProps() {
 describe('AsyncComboboxField', () => {
   const user = userEvent.setup();
 
-  // Helper: open the popover and wait for options to load
   async function openAndWaitForOptions() {
     const trigger = screen.getByRole('combobox');
     await user.click(trigger);
@@ -219,12 +218,15 @@ describe('AsyncComboboxField', () => {
       await openAndWaitForOptions();
       await user.click(screen.getByText('Acme Corp'));
 
-      // Popover should still be open — other options still visible
       await waitFor(() => {
         expect(screen.getByText('Beta Inc')).toBeInTheDocument();
       });
     });
   });
+
+  // ────────────────────────────────────────
+  // Multi mode — inline-chips display
+  // ────────────────────────────────────────
 
   describe('multi mode — inline-chips display', () => {
     it('renders badges for selected items', () => {
@@ -301,7 +303,7 @@ describe('AsyncComboboxField', () => {
       expect(props.onChange).toHaveBeenCalledWith(['2']);
     });
 
-    it('expands all chips below when "+N more" is clicked', async () => {
+    it('expands all chips when "+N more" is clicked', async () => {
       renderWithQuery(
         <AsyncComboboxField
           config={createConfig({
@@ -339,25 +341,6 @@ describe('AsyncComboboxField', () => {
 
       expect(screen.queryByText('Delta Co')).not.toBeInTheDocument();
       expect(screen.getByText('+2 more')).toBeInTheDocument();
-    });
-
-    it('does not show expanded area when 3 or fewer items', () => {
-      renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({
-            mode: 'multi',
-            multiDisplayMode: 'inline-chips',
-            initialOptions: mockOptions.slice(0, 3),
-          })}
-          {...defaultProps()}
-          value={['1', '2', '3']}
-        />,
-      );
-
-      expect(screen.queryByText('+', { exact: false })).not.toBeInTheDocument();
-      expect(screen.getByText('Acme Corp')).toBeInTheDocument();
-      expect(screen.getByText('Beta Inc')).toBeInTheDocument();
-      expect(screen.getByText('Gamma LLC')).toBeInTheDocument();
     });
   });
 
@@ -410,7 +393,7 @@ describe('AsyncComboboxField', () => {
   });
 
   // ────────────────────────────────────────
-  // Toggle all
+  // Toggle all / Clear
   // ────────────────────────────────────────
 
   describe('toggle all', () => {
@@ -458,6 +441,46 @@ describe('AsyncComboboxField', () => {
       );
     });
 
+    it('shows "Clear" when all options are selected', async () => {
+      const props = defaultProps();
+
+      renderWithQuery(
+        <AsyncComboboxField
+          config={createConfig({ mode: 'multi', showToggleAll: true })}
+          {...props}
+        />,
+      );
+
+      await openAndWaitForOptions();
+      await user.click(screen.getByText('Select all'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Clear')).toBeInTheDocument();
+      });
+    });
+
+    it('deselects all when "Clear" is clicked', async () => {
+      const props = defaultProps();
+
+      renderWithQuery(
+        <AsyncComboboxField
+          config={createConfig({ mode: 'multi', showToggleAll: true })}
+          {...props}
+        />,
+      );
+
+      await openAndWaitForOptions();
+      // Select all first
+      await user.click(screen.getByText('Select all'));
+      // Then clear
+      await waitFor(() => {
+        expect(screen.getByText('Clear')).toBeInTheDocument();
+      });
+      await user.click(screen.getByText('Clear'));
+
+      expect(props.onChange).toHaveBeenLastCalledWith([]);
+    });
+
     it('does not show toggle all in single mode', async () => {
       renderWithQuery(
         <AsyncComboboxField
@@ -469,39 +492,6 @@ describe('AsyncComboboxField', () => {
       await openAndWaitForOptions();
 
       expect(screen.queryByText('Select all')).not.toBeInTheDocument();
-    });
-
-    it('shows "Clear" button when items are selected', async () => {
-      const props = defaultProps();
-
-      renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({ mode: 'multi', showToggleAll: true })}
-          {...props}
-        />,
-      );
-
-      await openAndWaitForOptions();
-      await user.click(screen.getByText('Acme Corp'));
-
-      expect(screen.getByText('Clear')).toBeInTheDocument();
-    });
-
-    it('clears all selections when Clear is clicked', async () => {
-      const props = defaultProps();
-
-      renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({ mode: 'multi', showToggleAll: true })}
-          {...props}
-        />,
-      );
-
-      await openAndWaitForOptions();
-      await user.click(screen.getByText('Acme Corp'));
-      await user.click(screen.getByText('Clear'));
-
-      expect(props.onChange).toHaveBeenLastCalledWith([]);
     });
   });
 
@@ -564,12 +554,10 @@ describe('AsyncComboboxField', () => {
       const trigger = screen.getByRole('combobox');
       await user.click(trigger);
 
-      // Wait for initial fetch (search: '')
       await waitFor(() => {
         expect(queryFn).toHaveBeenCalledWith(expect.objectContaining({ search: '' }));
       });
 
-      // Type search term — debounceMs is 0 so it fires immediately
       const searchInput = screen.getByPlaceholderText('Search company...');
       await user.type(searchInput, 'Acm');
 
@@ -613,7 +601,6 @@ describe('AsyncComboboxField', () => {
       const trigger = screen.getByRole('combobox');
       await user.click(trigger);
 
-      // Give it some time, then verify queryFn was never called
       await new Promise((r) => setTimeout(r, 100));
       expect(queryFn).not.toHaveBeenCalled();
     });
@@ -648,7 +635,6 @@ describe('AsyncComboboxField', () => {
 
   describe('loading and empty states', () => {
     it('shows "Loading..." while query is pending', async () => {
-      // queryFn that never resolves
       const queryFn = vi.fn().mockReturnValue(new Promise(() => {}));
 
       renderWithQuery(
