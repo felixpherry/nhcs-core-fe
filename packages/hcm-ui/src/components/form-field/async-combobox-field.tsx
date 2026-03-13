@@ -84,6 +84,8 @@ export function AsyncComboboxField<TForm extends Record<string, unknown>>({
 
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [chipsExpanded, setChipsExpanded] = useState(false);
+
   const debouncedSearch = useDebounce(search, debounceMs);
 
   // ── Option cache ──
@@ -302,30 +304,43 @@ export function AsyncComboboxField<TForm extends Record<string, unknown>>({
               </Badge>
             ))}
             {overflowCount > 0 && (
-              <span className="text-xs text-muted-foreground">+{overflowCount} more</span>
+              <span
+                role="button"
+                tabIndex={0}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors underline cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setChipsExpanded(true);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    setChipsExpanded(true);
+                  }
+                }}
+              >
+                +{overflowCount} more
+              </span>
             )}
           </span>
         );
       }
-
-      case 'chips-below':
-        return <span>{selectedCount} selected</span>;
-
-      default:
-        return <span>{selectedCount} selected</span>;
     }
   }
 
   // ── Render: Chips below trigger (for chips-below mode) ──
 
   function renderChipsBelow() {
-    if (!isMulti || multiDisplayMode !== 'chips-below' || selectedCount === 0) {
+    if (!isMulti || multiDisplayMode !== 'inline-chips' || !chipsExpanded || selectedCount === 0) {
       return null;
     }
 
     const keys = Array.from(selectionState.selectedKeys);
+
     return (
-      <div className="flex flex-wrap gap-1 pt-1">
+      <div className="flex flex-wrap items-center gap-1 pt-1">
         {keys.map((val) => (
           <Badge key={val} variant="secondary" className="group/chip gap-0.5 pr-0.5">
             {resolveLabel(val)}
@@ -351,6 +366,13 @@ export function AsyncComboboxField<TForm extends Record<string, unknown>>({
             </span>
           </Badge>
         ))}
+        <button
+          type="button"
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors underline"
+          onClick={() => setChipsExpanded(false)}
+        >
+          Show less
+        </button>
       </div>
     );
   }

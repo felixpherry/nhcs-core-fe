@@ -226,10 +226,6 @@ describe('AsyncComboboxField', () => {
     });
   });
 
-  // ────────────────────────────────────────
-  // Multi mode — inline-chips display
-  // ────────────────────────────────────────
-
   describe('multi mode — inline-chips display', () => {
     it('renders badges for selected items', () => {
       renderWithQuery(
@@ -264,6 +260,7 @@ describe('AsyncComboboxField', () => {
       expect(screen.getByText('Acme Corp')).toBeInTheDocument();
       expect(screen.getByText('Beta Inc')).toBeInTheDocument();
       expect(screen.getByText('Gamma LLC')).toBeInTheDocument();
+      expect(screen.queryByText('Delta Co')).not.toBeInTheDocument();
       expect(screen.getByText('+2 more')).toBeInTheDocument();
     });
 
@@ -303,45 +300,64 @@ describe('AsyncComboboxField', () => {
 
       expect(props.onChange).toHaveBeenCalledWith(['2']);
     });
-  });
 
-  // ────────────────────────────────────────
-  // Multi mode — chips-below display
-  // ────────────────────────────────────────
-
-  describe('multi mode — chips-below display', () => {
-    it('shows count in trigger and chips below', () => {
+    it('expands all chips below when "+N more" is clicked', async () => {
       renderWithQuery(
         <AsyncComboboxField
           config={createConfig({
             mode: 'multi',
-            multiDisplayMode: 'chips-below',
-            initialOptions: mockOptions.slice(0, 2),
+            multiDisplayMode: 'inline-chips',
+            initialOptions: mockOptions,
           })}
           {...defaultProps()}
-          value={['1', '2']}
+          value={['1', '2', '3', '4', '5']}
         />,
       );
 
-      expect(screen.getByText('2 selected')).toBeInTheDocument();
-      expect(screen.getByText('Acme Corp')).toBeInTheDocument();
-      expect(screen.getByText('Beta Inc')).toBeInTheDocument();
-      expect(screen.getByLabelText('Remove Acme Corp')).toBeInTheDocument();
+      await user.click(screen.getByText('+2 more'));
+
+      expect(screen.getByText('Delta Co')).toBeInTheDocument();
+      expect(screen.getByText('Epsilon Ltd')).toBeInTheDocument();
+      expect(screen.getByText('Show less')).toBeInTheDocument();
     });
 
-    it('does not render chips-below area when nothing selected', () => {
+    it('collapses back when "Show less" is clicked', async () => {
       renderWithQuery(
         <AsyncComboboxField
           config={createConfig({
             mode: 'multi',
-            multiDisplayMode: 'chips-below',
+            multiDisplayMode: 'inline-chips',
+            initialOptions: mockOptions,
           })}
           {...defaultProps()}
-          value={[]}
+          value={['1', '2', '3', '4', '5']}
         />,
       );
 
-      expect(screen.getByText('Select...')).toBeInTheDocument();
+      await user.click(screen.getByText('+2 more'));
+      await user.click(screen.getByText('Show less'));
+
+      expect(screen.queryByText('Delta Co')).not.toBeInTheDocument();
+      expect(screen.getByText('+2 more')).toBeInTheDocument();
+    });
+
+    it('does not show expanded area when 3 or fewer items', () => {
+      renderWithQuery(
+        <AsyncComboboxField
+          config={createConfig({
+            mode: 'multi',
+            multiDisplayMode: 'inline-chips',
+            initialOptions: mockOptions.slice(0, 3),
+          })}
+          {...defaultProps()}
+          value={['1', '2', '3']}
+        />,
+      );
+
+      expect(screen.queryByText('+', { exact: false })).not.toBeInTheDocument();
+      expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+      expect(screen.getByText('Beta Inc')).toBeInTheDocument();
+      expect(screen.getByText('Gamma LLC')).toBeInTheDocument();
     });
   });
 

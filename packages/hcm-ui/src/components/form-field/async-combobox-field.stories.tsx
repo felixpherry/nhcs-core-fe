@@ -19,7 +19,6 @@ const mockCompanies: FieldOption[] = [
 ];
 
 const mockQueryFn = async ({ search }: { search: string }) => {
-  // Simulate network delay
   await new Promise((r) => setTimeout(r, 500));
   if (!search) return mockCompanies;
   return mockCompanies.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()));
@@ -143,19 +142,22 @@ export const MultiInlineChips: StoryObj = {
   ),
 };
 
-export const MultiChipsBelow: StoryObj = {
+export const MultiInlineChipsWithOverflow: StoryObj = {
+  name: 'Multi Inline Chips — Expand/Collapse',
   render: () => (
     <AsyncComboboxStory
       config={{
         id: 'companies',
         name: 'companies',
-        label: 'Companies',
+        label: 'Companies (select 4+ to see expand)',
         type: 'async-combobox',
         mode: 'multi',
-        multiDisplayMode: 'chips-below',
+        multiDisplayMode: 'inline-chips',
         showToggleAll: true,
         queryFn: mockQueryFn,
+        initialOptions: mockCompanies.slice(0, 6),
       }}
+      initialValue={['1', '2', '3', '4', '5', '6']}
     />
   ),
 };

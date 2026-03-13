@@ -25,7 +25,7 @@ export interface FieldOption {
  *  - 'count': "3 items selected" — clean, no overflow
  *  - 'inline-chips': chips inside trigger with × on hover, overflow shows "+N more"
  *  - 'chips-below': trigger shows "N selected", chips in wrap area below trigger */
-export type MultiDisplayMode = 'count' | 'inline-chips' | 'chips-below';
+export type MultiDisplayMode = 'count' | 'inline-chips';
 
 // ── Base config — shared by all field types ──
 
