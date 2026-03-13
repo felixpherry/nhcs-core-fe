@@ -273,7 +273,7 @@ export function AsyncComboboxField<TForm extends Record<string, unknown>>({
 
       case 'inline-chips': {
         const keys = Array.from(selectionState.selectedKeys);
-        const maxVisible = chipsExpanded ? keys.length : 3;
+        const maxVisible = chipsExpanded ? keys.length : 1;
         const visible = keys.slice(0, maxVisible);
         const overflowCount = keys.length - maxVisible;
         return (
@@ -303,11 +303,11 @@ export function AsyncComboboxField<TForm extends Record<string, unknown>>({
                 </span>
               </Badge>
             ))}
-            {
+            {(overflowCount > 0 || chipsExpanded) && (
               <span
                 role="button"
                 tabIndex={0}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors underline cursor-pointer"
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors underline cursor-pointer shrink-0"
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
@@ -321,9 +321,9 @@ export function AsyncComboboxField<TForm extends Record<string, unknown>>({
                   }
                 }}
               >
-                {overflowCount > 0 ? `+${overflowCount} more` : 'Show less'}
+                {chipsExpanded ? 'Show less' : `+${overflowCount} more`}
               </span>
-            }
+            )}
           </span>
         );
       }
