@@ -24,6 +24,12 @@ registerProcedure('company.remove', {
   criticality: 'critical',
 });
 
+registerProcedure('company.save', {
+  mode: 'proxy',
+  type: 'mutation',
+  criticality: 'critical',
+});
+
 // ── Input schema ──
 const companyListInput = z.object({
   page: z.number().min(1).default(1),
@@ -46,6 +52,23 @@ const companyListInput = z.object({
       }),
     )
     .optional(),
+});
+
+const companySaveInput = z.object({
+  companyId: z.number(), // 0 for create, real ID for update
+  companyCode: z.string(),
+  companyName: z.string(),
+  companyAlias: z.string(),
+  companyGroupId: z.number().nullable(),
+  address: z.string(),
+  stateId: z.string().nullable(),
+  cityId: z.string().nullable(),
+  districtId: z.string().nullable(),
+  subDistrictId: z.string().nullable(),
+  zipCode: z.string().nullable(),
+  phoneNumber: z.string(),
+  isActive: z.enum(['T', 'F']),
+  additionalAttributes: z.record(z.string(), z.unknown()).default({}),
 });
 
 // ── Router ──
@@ -111,4 +134,16 @@ export const companyRouter = router({
 
       return result;
     }),
+
+  save: protectedProcedure.input(companySaveInput).mutation(async ({ ctx, input }) => {
+    const result = await backendFetch({
+      method: 'POST',
+      path: '/organization-development/api/master-data/company/save',
+      body: input,
+      headers: ctx.authHeaders,
+      meta: getProcedureMeta('company.save'),
+    });
+
+    return result;
+  }),
 });
