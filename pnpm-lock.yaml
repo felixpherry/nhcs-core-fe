@@ -78,6 +78,9 @@ importers:
       '@nhcs/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@nhcs/features':
+        specifier: workspace:*
+        version: link:../../packages/features
       '@nhcs/hcm-ui':
         specifier: workspace:*
         version: link:../../packages/hcm-ui

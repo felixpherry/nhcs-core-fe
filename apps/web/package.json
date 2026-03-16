@@ -12,6 +12,7 @@
   "dependencies": {
     "@nhcs/api": "workspace:*",
     "@nhcs/config": "workspace:*",
+    "@nhcs/features": "workspace:*",
     "@nhcs/hcm-ui": "workspace:*",
     "@nhcs/registries": "workspace:*",
     "@nhcs/types": "workspace:*",
