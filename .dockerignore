@@ -1,0 +1,12 @@
+node_modules
+.next
+storybook-static
+.git
+.env
+.env.local
+*.md
+!README.md
+.turbo
+dist
+coverage
+.husky
