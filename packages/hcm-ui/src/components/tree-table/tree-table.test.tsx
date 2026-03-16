@@ -227,53 +227,64 @@ describe('TreeTable', () => {
   // ────────────────────────────────────────
 
   describe('expand / collapse', () => {
-    it('shows expand toggle on nodes with children', () => {
+    it('shows chevron on nodes with children', () => {
       render(<TreeTable treeTable={createMockTreeTable()} columns={columns} />);
 
-      // HQ (expanded) and Finance (collapsed) both have children
-      expect(screen.getByLabelText('Collapse 1')).toBeInTheDocument();
-      expect(screen.getByLabelText('Expand 1a')).toBeInTheDocument();
+      const hqCell = screen.getByText('Headquarters').closest('[class*="flex items-center"]');
+      expect(hqCell?.querySelector('svg')).not.toBeNull();
+
+      const finCell = screen.getByText('Finance Division').closest('[class*="flex items-center"]');
+      expect(finCell?.querySelector('svg')).not.toBeNull();
     });
 
-    it('does not show toggle on leaf nodes', () => {
+    it('does not show chevron on leaf nodes', () => {
       render(<TreeTable treeTable={createMockTreeTable()} columns={columns} />);
 
-      // HR (1b) and Branch (2) are leaves
-      expect(screen.queryByLabelText('Expand 1b')).not.toBeInTheDocument();
-      expect(screen.queryByLabelText('Collapse 1b')).not.toBeInTheDocument();
-      expect(screen.queryByLabelText('Expand 2')).not.toBeInTheDocument();
-      expect(screen.queryByLabelText('Collapse 2')).not.toBeInTheDocument();
+      const hrCell = screen.getByText('HR Division').closest('[class*="flex items-center"]');
+      expect(hrCell?.querySelector('svg')).toBeNull();
     });
 
-    it('calls toggleExpand when toggle is clicked', async () => {
+    it('calls toggleExpand when first cell clicked on parent', async () => {
       const treeTable = createMockTreeTable();
 
       render(<TreeTable treeTable={treeTable} columns={columns} />);
 
-      await user.click(screen.getByLabelText('Expand 1a'));
+      await user.click(screen.getByText('Finance Division'));
 
       expect(treeTable.toggleExpand).toHaveBeenCalledWith('1a');
     });
 
-    it('sets aria-expanded on toggle buttons', () => {
-      render(<TreeTable treeTable={createMockTreeTable()} columns={columns} />);
+    it('does not call toggleExpand on leaf click', async () => {
+      const treeTable = createMockTreeTable();
 
-      // HQ is expanded
-      expect(screen.getByLabelText('Collapse 1')).toHaveAttribute('aria-expanded', 'true');
-      // Finance is collapsed
-      expect(screen.getByLabelText('Expand 1a')).toHaveAttribute('aria-expanded', 'false');
+      render(<TreeTable treeTable={treeTable} columns={columns} />);
+
+      await user.click(screen.getByText('HR Division'));
+
+      expect(treeTable.toggleExpand).not.toHaveBeenCalled();
     });
 
-    it('toggle click does not trigger row click', async () => {
+    it('first cell click does not trigger row click on parent', async () => {
       const onRowClick = vi.fn();
       const treeTable = createMockTreeTable();
 
       render(<TreeTable treeTable={treeTable} columns={columns} onRowClick={onRowClick} />);
 
-      await user.click(screen.getByLabelText('Expand 1a'));
+      await user.click(screen.getByText('Headquarters'));
 
-      expect(treeTable.toggleExpand).toHaveBeenCalledWith('1a');
+      expect(treeTable.toggleExpand).toHaveBeenCalledWith('1');
       expect(onRowClick).not.toHaveBeenCalled();
+    });
+
+    it('leaf cell click triggers row click', async () => {
+      const onRowClick = vi.fn();
+      const treeTable = createMockTreeTable();
+
+      render(<TreeTable treeTable={treeTable} columns={columns} onRowClick={onRowClick} />);
+
+      await user.click(screen.getByText('Branch Office'));
+
+      expect(onRowClick).toHaveBeenCalledWith(expect.objectContaining({ id: '2' }));
     });
   });
 

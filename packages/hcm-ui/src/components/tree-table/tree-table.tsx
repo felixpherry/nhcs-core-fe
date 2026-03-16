@@ -127,34 +127,30 @@ export function TreeTable<TData>(props: TreeTableProps<TData>) {
                     {visibleColumns.map((col, colIndex) => (
                       <TableCell key={col.id}>
                         {colIndex === 0 ? (
-                          // First column: indent + expand toggle + value
                           <div
-                            className="flex items-center"
+                            className={cn(
+                              'flex items-center',
+                              node.hasChildren && 'cursor-pointer',
+                            )}
                             style={{ paddingLeft: node.depth * indentPx }}
+                            onClick={(e) => {
+                              if (node.hasChildren) {
+                                e.stopPropagation();
+                                toggleExpand(node.id);
+                              }
+                            }}
                           >
-                            {/* Expand/collapse toggle */}
+                            {/* Expand/collapse chevron (visual only — cell handles click) */}
                             {node.hasChildren ? (
-                              <button
-                                type="button"
-                                className="mr-1 flex size-6 shrink-0 items-center justify-center rounded-sm hover:bg-muted transition-colors"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleExpand(node.id);
-                                }}
-                                aria-label={
-                                  node.isExpanded ? `Collapse ${node.id}` : `Expand ${node.id}`
-                                }
-                                aria-expanded={node.isExpanded}
-                              >
+                              <span className="mr-1 flex size-6 shrink-0 items-center justify-center">
                                 <ChevronRightIcon
                                   className={cn(
                                     'size-4 transition-transform duration-200',
                                     node.isExpanded && 'rotate-90',
                                   )}
                                 />
-                              </button>
+                              </span>
                             ) : (
-                              // Spacer for alignment with sibling toggles
                               <span className="mr-1 size-6 shrink-0" />
                             )}
 
