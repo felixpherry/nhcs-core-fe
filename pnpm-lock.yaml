@@ -172,10 +172,25 @@ importers:
 
   packages/features:
     dependencies:
+      '@nhcs/api':
+        specifier: workspace:*
+        version: link:../api
       '@nhcs/config':
         specifier: workspace:*
         version: link:../config
+      '@nhcs/hcm-ui':
+        specifier: workspace:*
+        version: link:../hcm-ui
+      react:
+        specifier: '>=19.0.0'
+        version: 19.2.4
+      react-dom:
+        specifier: '>=19.0.0'
+        version: 19.2.4(react@19.2.4)
     devDependencies:
+      '@types/react':
+        specifier: ^19.2.14
+        version: 19.2.14
       typescript:
         specifier: ^5.7.0
         version: 5.9.3

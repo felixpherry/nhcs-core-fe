@@ -8,9 +8,16 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@nhcs/config": "workspace:*"
+    "@nhcs/api": "workspace:*",
+    "@nhcs/config": "workspace:*",
+    "@nhcs/hcm-ui": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": ">=19.0.0",
+    "react-dom": ">=19.0.0"
   },
   "devDependencies": {
+    "@types/react": "^19.2.14",
     "typescript": "^5.7.0"
   }
 }
