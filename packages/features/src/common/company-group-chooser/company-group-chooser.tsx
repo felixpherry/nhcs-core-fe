@@ -75,7 +75,6 @@ export function CompanyGroupChooser({
   isLoading,
   onQueryChange,
   validateCode,
-  label = 'Company Group',
   required = false,
   disabled = false,
   readOnly = false,
@@ -142,7 +141,6 @@ export function CompanyGroupChooser({
       getKey={(item) => String(item.companyGroupId)}
       value={value}
       onChange={onChange}
-      label={label}
       required={required}
       disabled={disabled}
       readOnly={readOnly}

@@ -4,7 +4,6 @@ import { useReducer, useCallback, useRef, useEffect } from 'react';
 import { SearchIcon, XIcon, LoaderIcon } from 'lucide-react';
 
 import { Input } from '../ui/input';
-import { Label } from '../ui/label';
 import { ChooserDialog } from '../chooser-dialog/chooser-dialog';
 import type { UseChooserReturn } from '../../hooks/use-chooser';
 import { cn } from '../../lib/utils';
@@ -37,7 +36,6 @@ export interface ChooserFieldProps<TData, TValue> {
 
   // ── Form field props ──
 
-  label?: string;
   required?: boolean;
   disabled?: boolean;
   readOnly?: boolean;
@@ -130,7 +128,6 @@ export function ChooserField<TData, TValue>({
   getKey,
   value,
   onChange,
-  label,
   required = false,
   disabled = false,
   readOnly = false,
@@ -238,13 +235,6 @@ export function ChooserField<TData, TValue>({
 
   return (
     <div className="space-y-1.5">
-      {label && (
-        <Label htmlFor={id}>
-          {label}
-          {required && <span className="text-destructive ml-1">*</span>}
-        </Label>
-      )}
-
       <div
         className="flex items-center gap-2"
         onMouseEnter={() => dispatch({ type: 'SET_HOVER', hovered: true })}

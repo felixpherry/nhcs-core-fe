@@ -17,10 +17,16 @@ import {
 } from '@nhcs/hcm-ui';
 import { createCompanyColumns, type CompanyRowActions } from './columns';
 import { CompanyFormDialog, type FormMode } from './company-form-dialog';
-import type { Company } from '@nhcs/api/src/routers/organization-development/company/company.schema';
+import { CompanyFilterDialog } from './company-filter-dialog';
+import type {
+  Company,
+  CompanyFilter,
+} from '@nhcs/api/src/routers/organization-development/company/company.schema';
 
 export function CompanyList() {
   const [search, setSearch] = useState('');
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [advancedFilter, setAdvancedFilter] = useState<CompanyFilter | null>(null);
   const utils = trpc.useUtils();
 
   // ── Form dialog state ──
@@ -76,7 +82,7 @@ export function CompanyList() {
     [],
   );
 
-  // ── Columns (memoized with actions) ──
+  // ── Columns ──
 
   const columns = useMemo(() => createCompanyColumns(rowActions), [rowActions]);
 
@@ -94,6 +100,7 @@ export function CompanyList() {
     ...table.queryState,
     filters: {
       companyName: search || null,
+      ...(advancedFilter ?? {}),
     },
   });
 
@@ -112,7 +119,7 @@ export function CompanyList() {
     }),
   });
 
-  // ── Invalidate list after mutations ──
+  // ── Invalidate list ──
 
   const invalidateList = useCallback(() => {
     utils.organizationDevelopment.company.list.invalidate();
@@ -127,6 +134,27 @@ export function CompanyList() {
     },
     [table],
   );
+
+  // ── Advanced filter handlers ──
+
+  const handleApplyFilter = useCallback(
+    (filter: CompanyFilter) => {
+      setAdvancedFilter(filter);
+      if (filter.companyName) {
+        setSearch(filter.companyName);
+      } else if (filter.companyCode) {
+        setSearch(filter.companyCode);
+      }
+      table.setPage(1);
+    },
+    [table],
+  );
+
+  const handleResetFilter = useCallback(() => {
+    setAdvancedFilter(null);
+    setSearch('');
+    table.setPage(1);
+  }, [table]);
 
   // ── Delete handler ──
 
@@ -175,6 +203,9 @@ export function CompanyList() {
         <DataTableToolbar>
           <DataTableSearch value={search} onChange={handleSearch} placeholder="Search company..." />
           <DataTableActions>
+            <Button variant="outline" onClick={() => setFilterOpen(true)}>
+              Advanced Filter
+            </Button>
             <Button onClick={() => setFormState({ open: true, mode: 'add', company: null })}>
               Add Company
             </Button>
@@ -191,6 +222,14 @@ export function CompanyList() {
         mode={formState.mode}
         company={formState.company}
         onSuccess={invalidateList}
+      />
+
+      {/* ── Advanced Filter Dialog ── */}
+      <CompanyFilterDialog
+        open={filterOpen}
+        onOpenChange={setFilterOpen}
+        onApply={handleApplyFilter}
+        onReset={handleResetFilter}
       />
 
       {/* ── Delete Confirmation ── */}

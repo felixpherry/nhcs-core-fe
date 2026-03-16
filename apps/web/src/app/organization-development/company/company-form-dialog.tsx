@@ -371,161 +371,147 @@ export function CompanyFormDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-4 py-2">
-          {/* ── Company ID (edit/view only) ── */}
-          {!isAdd && (
-            <FormField label="Company ID" className="col-span-2">
-              <Input value={state.data.companyId} disabled />
+        {/* ── Company ID (edit/view only) ── */}
+        {!isAdd && (
+          <FormField label="Company ID">
+            <Input value={state.data.companyId} disabled />
+          </FormField>
+        )}
+
+        {/* ── Company Code ── */}
+        <FormField label="Company Code" required={!isView} error={state.errors.companyCode}>
+          <Input
+            value={state.data.companyCode}
+            onChange={(e) =>
+              dispatch({ type: 'SET_FIELD', name: 'companyCode', value: e.target.value })
+            }
+            disabled={isView || isEdit}
+            placeholder="Enter company code"
+          />
+        </FormField>
+
+        {/* ── Company Name ── */}
+        <FormField label="Company Name" required={!isView} error={state.errors.companyName}>
+          <Input
+            value={state.data.companyName}
+            onChange={(e) =>
+              dispatch({ type: 'SET_FIELD', name: 'companyName', value: e.target.value })
+            }
+            disabled={isView}
+            placeholder="Enter company name"
+          />
+        </FormField>
+
+        {/* ── Company Alias ── */}
+        <FormField label="Company Alias" required={!isView} error={state.errors.companyAlias}>
+          <Input
+            value={state.data.companyAlias}
+            onChange={(e) =>
+              dispatch({ type: 'SET_FIELD', name: 'companyAlias', value: e.target.value })
+            }
+            disabled={isView}
+            placeholder="Enter company alias"
+          />
+        </FormField>
+
+        {/* ── Company Group (ChooserField) ── */}
+        <FormField label="Company Group">
+          <CompanyGroupChooser
+            value={state.companyGroup}
+            onChange={(val) => dispatch({ type: 'SET_COMPANY_GROUP', value: val })}
+            listData={cgList.data?.data ?? []}
+            listCount={cgList.data?.count ?? 0}
+            isLoading={cgList.isLoading}
+            onQueryChange={setCgQuery}
+            validateCode={validateCompanyGroupCode}
+            disabled={isView}
+          />
+        </FormField>
+
+        {/* ── Address ── */}
+        <FormField label="Address" required={!isView} error={state.errors.address}>
+          <textarea
+            value={state.data.address}
+            onChange={(e) =>
+              dispatch({ type: 'SET_FIELD', name: 'address', value: e.target.value })
+            }
+            disabled={isView}
+            placeholder="Enter address (min. 15 characters)"
+            rows={3}
+            className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          />
+        </FormField>
+
+        {/* ── State/Area (ChooserField) ── */}
+        <FormField label="State/Area">
+          <AreaChooser
+            value={state.area}
+            onChange={(val) => dispatch({ type: 'SET_AREA', value: val })}
+            listData={areaList.data?.data ?? []}
+            listCount={areaList.data?.count ?? 0}
+            isLoading={areaList.isLoading}
+            onQueryChange={setAreaQuery}
+            disabled={isView}
+          />
+        </FormField>
+
+        {/* ── Cascading fields (auto-filled from Area) ── */}
+        <FormField label="City">
+          <Input value={state.area?.cityName ?? ''} disabled />
+        </FormField>
+
+        <FormField label="District">
+          <Input value={state.area?.districtName ?? ''} disabled />
+        </FormField>
+
+        <FormField label="Sub District">
+          <Input value={state.area?.subDistrictName ?? ''} disabled />
+        </FormField>
+
+        <FormField label="Zip Code">
+          <Input value={state.area?.zipCode ?? ''} disabled />
+        </FormField>
+
+        {/* ── Phone Number ── */}
+        <FormField label="Phone Number" required={!isView} error={state.errors.phoneNumber}>
+          <Input
+            value={state.data.phoneNumber}
+            onChange={(e) =>
+              dispatch({ type: 'SET_FIELD', name: 'phoneNumber', value: e.target.value })
+            }
+            disabled={isView}
+            placeholder="Enter phone number (min. 10 digits)"
+          />
+        </FormField>
+
+        {/* ── Status (edit/view only) ── */}
+        {!isAdd && (
+          <FormField label="Status">
+            <div className="flex items-center gap-2 pt-1">
+              <Checkbox checked={state.data.isActive === 'T'} disabled />
+              <span className="text-sm">{state.data.isActive === 'T' ? 'Active' : 'Inactive'}</span>
+            </div>
+          </FormField>
+        )}
+
+        {/* ── Status Changed Date (edit/view only) ── */}
+        {!isAdd && company?.onChangeDate && (
+          <FormField label="Status Changed Date">
+            <Input value={company.onChangeDate} disabled />
+          </FormField>
+        )}
+
+        {/* ── Audit fields (edit/view only) ── */}
+        {!isAdd && (
+          <>
+            <FormField label="Created By">
+              <Input value={company?.createdName ?? '-'} disabled />
             </FormField>
-          )}
-
-          {/* ── Company Code ── */}
-          <FormField label="Company Code" required={!isView} error={state.errors.companyCode}>
-            <Input
-              value={state.data.companyCode}
-              onChange={(e) =>
-                dispatch({ type: 'SET_FIELD', name: 'companyCode', value: e.target.value })
-              }
-              disabled={isView || isEdit}
-              placeholder="Enter company code"
-            />
-          </FormField>
-
-          {/* ── Company Name ── */}
-          <FormField label="Company Name" required={!isView} error={state.errors.companyName}>
-            <Input
-              value={state.data.companyName}
-              onChange={(e) =>
-                dispatch({ type: 'SET_FIELD', name: 'companyName', value: e.target.value })
-              }
-              disabled={isView}
-              placeholder="Enter company name"
-            />
-          </FormField>
-
-          {/* ── Company Alias ── */}
-          <FormField label="Company Alias" required={!isView} error={state.errors.companyAlias}>
-            <Input
-              value={state.data.companyAlias}
-              onChange={(e) =>
-                dispatch({ type: 'SET_FIELD', name: 'companyAlias', value: e.target.value })
-              }
-              disabled={isView}
-              placeholder="Enter company alias"
-            />
-          </FormField>
-
-          {/* ── Company Group (ChooserField) ── */}
-          <FormField label="Company Group">
-            <CompanyGroupChooser
-              value={state.companyGroup}
-              onChange={(val) => dispatch({ type: 'SET_COMPANY_GROUP', value: val })}
-              listData={cgList.data?.data ?? []}
-              listCount={cgList.data?.count ?? 0}
-              isLoading={cgList.isLoading}
-              onQueryChange={setCgQuery}
-              validateCode={validateCompanyGroupCode}
-              disabled={isView}
-            />
-          </FormField>
-
-          {/* ── Address ── */}
-          <FormField
-            label="Address"
-            required={!isView}
-            error={state.errors.address}
-            className="col-span-2"
-          >
-            <textarea
-              value={state.data.address}
-              onChange={(e) =>
-                dispatch({ type: 'SET_FIELD', name: 'address', value: e.target.value })
-              }
-              disabled={isView}
-              placeholder="Enter address (min. 15 characters)"
-              rows={3}
-              className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            />
-          </FormField>
-
-          {/* ── State/Area (ChooserField) ── */}
-          <FormField label="State/Area" className="col-span-2">
-            <AreaChooser
-              value={state.area}
-              onChange={(val) => dispatch({ type: 'SET_AREA', value: val })}
-              listData={areaList.data?.data ?? []}
-              listCount={areaList.data?.count ?? 0}
-              isLoading={areaList.isLoading}
-              onQueryChange={setAreaQuery}
-              disabled={isView}
-            />
-          </FormField>
-
-          {/* ── Cascading fields (auto-filled from Area) ── */}
-          <FormField label="City">
-            <Input value={state.area?.cityName ?? ''} disabled />
-          </FormField>
-
-          <FormField label="District">
-            <Input value={state.area?.districtName ?? ''} disabled />
-          </FormField>
-
-          <FormField label="Sub District">
-            <Input value={state.area?.subDistrictName ?? ''} disabled />
-          </FormField>
-
-          <FormField label="Zip Code">
-            <Input value={state.area?.zipCode ?? ''} disabled />
-          </FormField>
-
-          {/* ── Phone Number ── */}
-          <FormField
-            label="Phone Number"
-            required={!isView}
-            error={state.errors.phoneNumber}
-            className="col-span-2"
-          >
-            <Input
-              value={state.data.phoneNumber}
-              onChange={(e) =>
-                dispatch({ type: 'SET_FIELD', name: 'phoneNumber', value: e.target.value })
-              }
-              disabled={isView}
-              placeholder="Enter phone number (min. 10 digits)"
-            />
-          </FormField>
-
-          {/* ── Status (edit/view only) ── */}
-          {!isAdd && (
-            <FormField label="Status">
-              <div className="flex items-center gap-2 pt-1">
-                <Checkbox checked={state.data.isActive === 'T'} disabled />
-                <span className="text-sm">
-                  {state.data.isActive === 'T' ? 'Active' : 'Inactive'}
-                </span>
-              </div>
+            <FormField label="Updated By">
+              <Input value={company?.updatedName ?? '-'} disabled />
             </FormField>
-          )}
-
-          {/* ── Status Changed Date (edit/view only) ── */}
-          {!isAdd && company?.onChangeDate && (
-            <FormField label="Status Changed Date">
-              <Input value={company.onChangeDate} disabled />
-            </FormField>
-          )}
-
-          {/* ── Audit fields (edit/view only) ── */}
-          {!isAdd && (
-            <>
-              <FormField label="Created By">
-                <Input value={company?.createdName ?? '-'} disabled />
-              </FormField>
-              <FormField label="Updated By">
-                <Input value={company?.updatedName ?? '-'} disabled />
-              </FormField>
-            </>
-          )}
-        </div>
+          </>
+        )}
 
         {/* ── Footer ── */}
         <DialogFooter>
