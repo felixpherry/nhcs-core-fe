@@ -1,1 +1,1 @@
-export { ChooserField } from './chooser-field';
+export { ChooserField, type ChooserFieldProps } from './chooser-field';
