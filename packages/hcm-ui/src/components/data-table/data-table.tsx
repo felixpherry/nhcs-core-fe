@@ -47,6 +47,19 @@ function renderCellValue<TData>(col: ColumnConfig<TData>, row: TData): ReactNode
   }
 }
 
+// ── Align class helper ──
+
+function getAlignClass(align?: 'left' | 'center' | 'right'): string {
+  switch (align) {
+    case 'center':
+      return 'text-center';
+    case 'right':
+      return 'text-right';
+    default:
+      return '';
+  }
+}
+
 // ── Sort indicator ──
 
 function SortIndicator({
@@ -63,7 +76,7 @@ function SortIndicator({
 
   return (
     <span className="ml-1 text-muted-foreground">
-      {sort.desc ? '↓' : '↑'}
+      {sort.desc ? '\u2193' : '\u2191'}
       {index && <sup className="text-xs">{index}</sup>}
     </span>
   );
@@ -131,10 +144,17 @@ export function DataTableContent<TData>({
                 className={cn(
                   col.sortable && 'cursor-pointer select-none',
                   col.width && typeof col.width === 'number' && `w-[${col.width}px]`,
+                  getAlignClass(col.align),
                 )}
                 onClick={col.sortable ? () => table.toggleSort(col.id) : undefined}
               >
-                <div className="flex items-center">
+                <div
+                  className={cn(
+                    'flex items-center',
+                    col.align === 'center' && 'justify-center',
+                    col.align === 'right' && 'justify-end',
+                  )}
+                >
                   {col.header}
                   {col.sortable && <SortIndicator columnId={col.id} sorting={sorting} />}
                 </div>
@@ -165,7 +185,9 @@ export function DataTableContent<TData>({
                   </TableCell>
                 )}
                 {visibleColumns.map((col) => (
-                  <TableCell key={col.id}>{renderCellValue(col, row)}</TableCell>
+                  <TableCell key={col.id} className={getAlignClass(col.align)}>
+                    {renderCellValue(col, row)}
+                  </TableCell>
                 ))}
               </TableRow>
             );
@@ -244,7 +266,7 @@ export function DataTablePagination<TData>({ table }: { table: UseDataTableRetur
             disabled={!table.canPreviousPage}
             className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input text-sm disabled:opacity-50"
           >
-            ←
+            \u2190
           </button>
           <span className="text-sm px-2">
             {table.page} / {table.pageCount}
@@ -254,7 +276,7 @@ export function DataTablePagination<TData>({ table }: { table: UseDataTableRetur
             disabled={!table.canNextPage}
             className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input text-sm disabled:opacity-50"
           >
-            →
+            \u2192
           </button>
         </div>
       </div>
