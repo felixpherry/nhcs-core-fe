@@ -135,6 +135,7 @@ export const WithLabel: StoryObj = {
         </p>
         <ChooserField
           chooser={chooser}
+          disableCodeInput={true}
           validateCode={mockValidateCode}
           getCode={(item) => item.code}
           getLabel={(item) => item.name}

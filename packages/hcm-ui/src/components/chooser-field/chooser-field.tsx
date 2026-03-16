@@ -17,6 +17,11 @@ export interface ChooserFieldProps<TData, TValue> {
   /** Validate a typed code on blur.
    *  Query the same endpoint as the dialog table with the typed code.
    *  Return the projected TValue if exactly 1 match, null otherwise. */
+
+  /** Disable the code text input — user can only select via the search dialog.
+   *  When true, the code input is read-only and blur validation is skipped.
+   *  Default: false */
+  disableCodeInput?: boolean;
   validateCode: (code: string) => Promise<TValue | null>;
   /** Extract the code string from a TValue */
   getCode: (item: TValue) => string;
@@ -119,6 +124,7 @@ function fieldReducer(state: FieldState, action: FieldAction): FieldState {
 export function ChooserField<TData, TValue>({
   chooser,
   validateCode,
+  disableCodeInput = false,
   getCode,
   getLabel,
   getKey,
@@ -250,18 +256,37 @@ export function ChooserField<TData, TValue>({
             id={id}
             type="text"
             value={state.codeText}
-            onChange={(e) => dispatch({ type: 'SET_CODE', code: e.target.value })}
-            onBlur={handleBlur}
+            onChange={(e) => {
+              if (!disableCodeInput) {
+                dispatch({ type: 'SET_CODE', code: e.target.value });
+              }
+            }}
+            onBlur={() => {
+              if (!disableCodeInput) {
+                handleBlur();
+              }
+            }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
+              if (e.key === 'Enter' && !disableCodeInput) {
                 e.preventDefault();
                 e.currentTarget.blur();
               }
             }}
+            onClick={() => {
+              if (disableCodeInput && !isDisabled) {
+                handleOpenChooser();
+              }
+            }}
             disabled={isDisabled}
-            placeholder={placeholder}
-            className={cn('rounded-r-none', showError && 'border-destructive')}
+            readOnly={disableCodeInput}
+            placeholder={disableCodeInput ? 'Click to search' : placeholder}
+            className={cn(
+              'rounded-r-none',
+              disableCodeInput && !isDisabled && 'cursor-pointer',
+              showError && 'border-destructive',
+            )}
           />
+
           <button
             type="button"
             disabled={isDisabled}
@@ -271,12 +296,18 @@ export function ChooserField<TData, TValue>({
               isDisabled && 'opacity-50 cursor-not-allowed',
               showError && 'border-destructive',
             )}
-            onClick={showClearButton ? handleClear : handleOpenChooser}
-            title={showClearButton ? 'Clear' : 'Search'}
+            onClick={
+              disableCodeInput
+                ? handleOpenChooser
+                : showClearButton
+                  ? handleClear
+                  : handleOpenChooser
+            }
+            title={disableCodeInput ? 'Search' : showClearButton ? 'Clear' : 'Search'}
           >
-            {state.isValidating ? (
+            {!disableCodeInput && state.isValidating ? (
               <LoaderIcon className="size-4 animate-spin text-muted-foreground" />
-            ) : showClearButton ? (
+            ) : !disableCodeInput && showClearButton ? (
               <XIcon className="size-4 text-muted-foreground" />
             ) : (
               <SearchIcon className="size-4 text-muted-foreground" />
