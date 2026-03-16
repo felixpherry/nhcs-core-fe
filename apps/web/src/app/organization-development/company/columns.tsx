@@ -17,6 +17,7 @@ export function createCompanyColumns(actions: CompanyRowActions) {
     {
       id: 'actions',
       header: 'Actions',
+      align: 'center',
       cell: (_value, row) => (
         <div className="flex items-center gap-1">
           <Button
@@ -49,6 +50,7 @@ export function createCompanyColumns(actions: CompanyRowActions) {
     {
       id: 'active',
       header: 'Active',
+      align: 'center',
       accessorKey: 'isActive',
       cell: (_value, row) => (
         <Checkbox
@@ -65,6 +67,18 @@ export function createCompanyColumns(actions: CompanyRowActions) {
       accessorKey: 'companyCode',
       header: 'Company Code',
       sortable: true,
+      cell: (_value, row) => (
+        <button
+          type="button"
+          className="text-primary hover:underline font-medium"
+          onClick={(e) => {
+            e.stopPropagation();
+            actions.onView(row);
+          }}
+        >
+          {row.companyCode}
+        </button>
+      ),
     },
     {
       id: 'companyName',

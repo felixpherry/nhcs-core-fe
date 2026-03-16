@@ -22,6 +22,7 @@ import type {
   Company,
   CompanyFilter,
 } from '@nhcs/api/src/routers/organization-development/company/company.schema';
+import type { Flag } from '@nhcs/types';
 
 export function CompanyList() {
   const [search, setSearch] = useState('');
@@ -91,8 +92,8 @@ export function CompanyList() {
   const table = useDataTable<Company>({
     columns,
     getRowId: (row) => String(row.companyId),
-    selection: { mode: 'multi' },
   });
+  const [statusFilter, setStatusFilter] = useState<Flag | ''>('T');
 
   // ── Build query input ──
 
@@ -100,6 +101,7 @@ export function CompanyList() {
     ...table.queryState,
     filters: {
       companyName: search || null,
+      isActive: statusFilter || null,
       ...(advancedFilter ?? {}),
     },
   });
@@ -196,12 +198,21 @@ export function CompanyList() {
     <div className="space-y-4 p-6">
       <PageHeader title="Company" />
 
-      <DataTable
-        table={table}
-        onRowClick={(row) => setFormState({ open: true, mode: 'view', company: row })}
-      >
+      <DataTable table={table}>
         <DataTableToolbar>
           <DataTableSearch value={search} onChange={handleSearch} placeholder="Search company..." />
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value as 'T' | 'F' | '');
+              table.setPage(1);
+            }}
+            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+          >
+            <option value="T">Active</option>
+            <option value="F">Inactive</option>
+            <option value="">All</option>
+          </select>
           <DataTableActions>
             <Button variant="outline" onClick={() => setFilterOpen(true)}>
               Advanced Filter
