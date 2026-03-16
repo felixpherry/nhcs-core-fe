@@ -13,7 +13,7 @@ import type { FormFieldConfig } from '../form-field/types';
 
 // ── Test types ──
 
-interface TestFilter {
+interface TestFilter extends Record<string, unknown> {
   code: string;
   name: string;
   status: string;
