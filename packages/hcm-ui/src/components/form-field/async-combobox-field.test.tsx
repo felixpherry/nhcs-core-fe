@@ -243,10 +243,10 @@ describe('AsyncComboboxField', () => {
       );
 
       expect(screen.getByText('Acme Corp')).toBeInTheDocument();
-      expect(screen.getByText('Beta Inc')).toBeInTheDocument();
+      expect(screen.getByText('+1 more')).toBeInTheDocument();
     });
 
-    it('shows overflow count when more than 3 items selected', () => {
+    it('shows overflow when more than 1 item selected', () => {
       renderWithQuery(
         <AsyncComboboxField
           config={createConfig({
@@ -260,13 +260,11 @@ describe('AsyncComboboxField', () => {
       );
 
       expect(screen.getByText('Acme Corp')).toBeInTheDocument();
-      expect(screen.getByText('Beta Inc')).toBeInTheDocument();
-      expect(screen.getByText('Gamma LLC')).toBeInTheDocument();
-      expect(screen.queryByText('Delta Co')).not.toBeInTheDocument();
-      expect(screen.getByText('+2 more')).toBeInTheDocument();
+      expect(screen.queryByText('Beta Inc')).not.toBeInTheDocument();
+      expect(screen.getByText('+4 more')).toBeInTheDocument();
     });
 
-    it('renders remove buttons on chips', () => {
+    it('renders remove button on visible chip', () => {
       renderWithQuery(
         <AsyncComboboxField
           config={createConfig({
@@ -280,7 +278,8 @@ describe('AsyncComboboxField', () => {
       );
 
       expect(screen.getByLabelText('Remove Acme Corp')).toBeInTheDocument();
-      expect(screen.getByLabelText('Remove Beta Inc')).toBeInTheDocument();
+      // Beta Inc is hidden behind "+1 more"
+      expect(screen.queryByLabelText('Remove Beta Inc')).not.toBeInTheDocument();
     });
 
     it('calls onChange when chip remove button clicked', async () => {
@@ -316,8 +315,10 @@ describe('AsyncComboboxField', () => {
         />,
       );
 
-      await user.click(screen.getByText('+2 more'));
+      await user.click(screen.getByText('+4 more'));
 
+      expect(screen.getByText('Beta Inc')).toBeInTheDocument();
+      expect(screen.getByText('Gamma LLC')).toBeInTheDocument();
       expect(screen.getByText('Delta Co')).toBeInTheDocument();
       expect(screen.getByText('Epsilon Ltd')).toBeInTheDocument();
       expect(screen.getByText('Show less')).toBeInTheDocument();
@@ -336,11 +337,11 @@ describe('AsyncComboboxField', () => {
         />,
       );
 
-      await user.click(screen.getByText('+2 more'));
+      await user.click(screen.getByText('+4 more'));
       await user.click(screen.getByText('Show less'));
 
-      expect(screen.queryByText('Delta Co')).not.toBeInTheDocument();
-      expect(screen.getByText('+2 more')).toBeInTheDocument();
+      expect(screen.queryByText('Beta Inc')).not.toBeInTheDocument();
+      expect(screen.getByText('+4 more')).toBeInTheDocument();
     });
   });
 
@@ -379,8 +380,9 @@ describe('AsyncComboboxField', () => {
         />,
       );
 
+      // maxVisible=1, so only first chip shows, second is in "+1 more"
       expect(screen.getByText('Skill A')).toBeInTheDocument();
-      expect(screen.getByText('Skill B')).toBeInTheDocument();
+      expect(screen.getByText('+1 more')).toBeInTheDocument();
     });
 
     it('falls back to raw value when no label available', () => {
