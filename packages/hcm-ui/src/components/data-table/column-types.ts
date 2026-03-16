@@ -35,6 +35,8 @@ export interface ColumnConfig<TData> {
   pin?: 'left' | 'right';
   /** Enable/disable text wrapping */
   wrap?: boolean;
+  /** Text alignment for header and cells. Default: 'left' */
+  align?: 'left' | 'center' | 'right';
 }
 
 // ── Create columns helper ──
