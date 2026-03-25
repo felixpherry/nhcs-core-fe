@@ -55,3 +55,11 @@ All chooser-backing endpoints (company-group, area) live under `routers/common/`
 ## 2026-03-25 — Design system: primary color changed from near-black to blue
 
 Aligned with Figma ESS/MSS design. `--primary` changed from `oklch(0.205 0 0)` to `oklch(0.555 0.245 266.68)`. Added `--success` (#0DB14B) and `--warning` (#F26529) semantic colors.
+
+## 2026-03-25 — CrudDialog over CrudSheet
+
+**Context:** Design doc §7 specified CrudSheet (side panel) for CRUD forms. During Company page implementation, user chose centered Dialog instead. The old NHCS system also used centered modals.
+
+**Decision:** Rename the concept from CrudSheet to CrudDialog across documentation. The `useCrudForm` hook remains unchanged — it's container-agnostic. Future CRUD forms should use centered `Dialog` by default, with `Sheet` as an option for forms that benefit from side-panel layout (e.g., forms with a reference table visible behind).
+
+**Rationale:** Centered dialogs are more natural for CRUD forms in HCM systems — they focus attention on the form. Side panels are better for supplementary information (filters, settings).

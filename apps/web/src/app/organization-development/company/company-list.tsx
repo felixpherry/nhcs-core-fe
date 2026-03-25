@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
-import { useQueryState, parseAsString } from 'nuqs';
+import { useCallback, useMemo, useState, useEffect } from 'react';
+import { useQueryState, parseAsString, parseAsInteger } from 'nuqs';
 import { trpc } from '@/lib/trpc';
 import {
   useDataTable,
@@ -30,7 +30,7 @@ import type {
 } from '@nhcs/api/src/routers/organization-development/company/company.schema';
 import { toast } from 'sonner';
 
-// ── Fix 2: Discriminated union for form state ──
+// ── Form state discriminated union ──
 
 type FormState =
   | { mode: 'closed' }
@@ -39,29 +39,26 @@ type FormState =
   | { mode: 'view'; company: Company };
 
 export function CompanyList() {
-  // ── URL state (persisted in query params) ──
+  // ── URL state ──
 
   const [search, setSearch] = useQueryState('search', parseAsString.withDefault(''));
   const [statusFilter, setStatusFilter] = useQueryState('status', parseAsString.withDefault('T'));
+  const [urlPage, setUrlPage] = useQueryState('page', parseAsInteger.withDefault(1));
+  const [urlPageSize, setUrlPageSize] = useQueryState('pageSize', parseAsInteger.withDefault(10));
 
-  // ── Non-URL state (transient UI) ──
+  // ── Non-URL state ──
 
   const [filterOpen, setFilterOpen] = useState(false);
   const [advancedFilter, setAdvancedFilter] = useState<CompanyFilter | null>(null);
   const utils = trpc.useUtils();
 
-  // ── Fix 2: Discriminated union — impossible to have edit mode with null company ──
+  // ── Form state ──
 
   const [formState, setFormState] = useState<FormState>({ mode: 'closed' });
-
-  // ── Derived from discriminated union ──
 
   const formOpen = formState.mode !== 'closed';
   const formCompany =
     formState.mode === 'edit' || formState.mode === 'view' ? formState.company : null;
-
-  // ── Fix 1: Key at call site forces full remount including hooks ──
-
   const formKey =
     formState.mode === 'closed'
       ? 'closed'
@@ -118,7 +115,28 @@ export function CompanyList() {
   const table = useDataTable<Company>({
     columns,
     getRowId: (row) => String(row.companyId),
+    defaultPageSize: urlPageSize,
   });
+
+  // ── Sync URL → table on mount ──
+
+  useEffect(() => {
+    table.setPage(urlPage);
+  }, []);
+
+  // ── Sync table → URL when table state changes ──
+
+  useEffect(() => {
+    if (table.page !== urlPage) {
+      setUrlPage(table.page);
+    }
+  }, [table.page]);
+
+  useEffect(() => {
+    if (table.pageSize !== urlPageSize) {
+      setUrlPageSize(table.pageSize);
+    }
+  }, [table.pageSize]);
 
   // ── Build query input ──
 
@@ -213,7 +231,6 @@ export function CompanyList() {
 
       <DataTablePagination table={table} />
 
-      {/* Fix 1: key at call site — full remount on company/mode change */}
       <CompanyFormDialog
         key={formKey}
         open={formOpen}

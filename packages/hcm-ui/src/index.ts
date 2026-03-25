@@ -59,8 +59,8 @@ export {
   type FormMode,
 } from './hooks/use-crud-form';
 
-// CRUD sheet
-export { CrudSheet, type CrudSheetProps } from './components/crud-sheet';
+// CRUD dialog
+export { CrudDialog, type CrudDialogProps } from './components/crud-dialog';
 
 // DataTable system
 export {
