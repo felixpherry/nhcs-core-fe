@@ -13,11 +13,10 @@ import {
   DialogTitle,
   Input,
   Button,
-  Label,
   Checkbox,
   Textarea,
   ConfirmDialog,
-  cn,
+  FormFieldLayout,
 } from '@nhcs/hcm-ui';
 import {
   CompanyGroupChooser,
@@ -155,32 +154,6 @@ export interface CompanyFormDialogProps {
   onSuccess: () => void;
 }
 
-// ── Field wrapper ──
-
-function FormFieldWrapper({
-  label,
-  required,
-  error,
-  children,
-  className,
-}: {
-  label: string;
-  required?: boolean;
-  error?: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={cn('flex flex-col gap-2', className)}>
-      <Label className={cn(required && "after:content-['*'] after:text-destructive")}>
-        {label}
-      </Label>
-      {children}
-      {error && <p className="text-sm text-destructive mt-1">{error}</p>}
-    </div>
-  );
-}
-
 // ── Component ──
 // Note: Parent uses key={formKey} to force remount when company/mode changes.
 // This means all hooks (useForm, useState) reinitialize with correct data.
@@ -307,15 +280,15 @@ export function CompanyFormDialog({
           >
             {/* ── Company ID (edit/view only) ── */}
             {!isAdd && (
-              <FormFieldWrapper label="Company ID">
+              <FormFieldLayout label="Company ID">
                 <Input value={company?.companyId ?? ''} disabled />
-              </FormFieldWrapper>
+              </FormFieldLayout>
             )}
 
             {/* ── Company Code ── */}
             <form.Field name="companyCode">
               {(field) => (
-                <FormFieldWrapper
+                <FormFieldLayout
                   label="Company Code"
                   required={!isView}
                   error={field.state.meta.errors?.[0]?.toString()}
@@ -327,14 +300,14 @@ export function CompanyFormDialog({
                     disabled={isView || isEdit}
                     placeholder="Enter company code"
                   />
-                </FormFieldWrapper>
+                </FormFieldLayout>
               )}
             </form.Field>
 
             {/* ── Company Name ── */}
             <form.Field name="companyName">
               {(field) => (
-                <FormFieldWrapper
+                <FormFieldLayout
                   label="Company Name"
                   required={!isView}
                   error={field.state.meta.errors?.[0]?.toString()}
@@ -346,14 +319,14 @@ export function CompanyFormDialog({
                     disabled={isView}
                     placeholder="Enter company name"
                   />
-                </FormFieldWrapper>
+                </FormFieldLayout>
               )}
             </form.Field>
 
             {/* ── Company Alias ── */}
             <form.Field name="companyAlias">
               {(field) => (
-                <FormFieldWrapper
+                <FormFieldLayout
                   label="Company Alias"
                   required={!isView}
                   error={field.state.meta.errors?.[0]?.toString()}
@@ -365,14 +338,14 @@ export function CompanyFormDialog({
                     disabled={isView}
                     placeholder="Enter company alias"
                   />
-                </FormFieldWrapper>
+                </FormFieldLayout>
               )}
             </form.Field>
 
             {/* ── Company Group (ChooserField) ── */}
             <form.Field name="companyGroupId">
               {(field) => (
-                <FormFieldWrapper
+                <FormFieldLayout
                   label="Company Group"
                   required={!isView}
                   error={field.state.meta.errors?.[0]?.toString()}
@@ -391,14 +364,14 @@ export function CompanyFormDialog({
                     disabled={isView}
                     required
                   />
-                </FormFieldWrapper>
+                </FormFieldLayout>
               )}
             </form.Field>
 
             {/* ── Address ── */}
             <form.Field name="address">
               {(field) => (
-                <FormFieldWrapper
+                <FormFieldLayout
                   label="Address"
                   required={!isView}
                   error={field.state.meta.errors?.[0]?.toString()}
@@ -411,12 +384,12 @@ export function CompanyFormDialog({
                     placeholder="Enter address (min. 15 characters)"
                     rows={3}
                   />
-                </FormFieldWrapper>
+                </FormFieldLayout>
               )}
             </form.Field>
 
             {/* ── State/Area (ChooserField) ── */}
-            <FormFieldWrapper label="State/Area">
+            <FormFieldLayout label="State/Area">
               <AreaChooser
                 value={area}
                 onChange={(val) => {
@@ -433,31 +406,31 @@ export function CompanyFormDialog({
                 onQueryChange={setAreaQuery}
                 disabled={isView}
               />
-            </FormFieldWrapper>
+            </FormFieldLayout>
 
             {/* ── Cascading fields (auto-filled from Area) ── */}
             <div className="grid grid-cols-2 gap-4">
-              <FormFieldWrapper label="City">
+              <FormFieldLayout label="City">
                 <Input value={area?.cityName ?? ''} disabled />
-              </FormFieldWrapper>
+              </FormFieldLayout>
 
-              <FormFieldWrapper label="District">
+              <FormFieldLayout label="District">
                 <Input value={area?.districtName ?? ''} disabled />
-              </FormFieldWrapper>
+              </FormFieldLayout>
 
-              <FormFieldWrapper label="Sub District">
+              <FormFieldLayout label="Sub District">
                 <Input value={area?.subDistrictName ?? ''} disabled />
-              </FormFieldWrapper>
+              </FormFieldLayout>
 
-              <FormFieldWrapper label="Zip Code">
+              <FormFieldLayout label="Zip Code">
                 <Input value={area?.zipCode ?? ''} disabled />
-              </FormFieldWrapper>
+              </FormFieldLayout>
             </div>
 
             {/* ── Phone Number ── */}
             <form.Field name="phoneNumber">
               {(field) => (
-                <FormFieldWrapper
+                <FormFieldLayout
                   label="Phone Number"
                   required={!isView}
                   error={field.state.meta.errors?.[0]?.toString()}
@@ -469,38 +442,38 @@ export function CompanyFormDialog({
                     disabled={isView}
                     placeholder="Enter phone number (min. 10 digits)"
                   />
-                </FormFieldWrapper>
+                </FormFieldLayout>
               )}
             </form.Field>
 
             {/* ── Status (edit/view only) ── */}
             {!isAdd && (
-              <FormFieldWrapper label="Status">
+              <FormFieldLayout label="Status">
                 <div className="flex items-center gap-2 pt-1">
                   <Checkbox checked={company?.isActive === 'T'} disabled />
                   <span className="text-sm">
                     {company?.isActive === 'T' ? 'Active' : 'Inactive'}
                   </span>
                 </div>
-              </FormFieldWrapper>
+              </FormFieldLayout>
             )}
 
             {/* ── Status Changed Date (edit/view only) ── */}
             {!isAdd && company?.onChangeDate && (
-              <FormFieldWrapper label="Status Changed Date">
+              <FormFieldLayout label="Status Changed Date">
                 <Input value={company.onChangeDate} disabled />
-              </FormFieldWrapper>
+              </FormFieldLayout>
             )}
 
             {/* ── Audit fields (edit/view only) ── */}
             {!isAdd && (
               <div className="grid grid-cols-2 gap-4">
-                <FormFieldWrapper label="Created By">
+                <FormFieldLayout label="Created By">
                   <Input value={company?.createdName ?? '-'} disabled />
-                </FormFieldWrapper>
-                <FormFieldWrapper label="Updated By">
+                </FormFieldLayout>
+                <FormFieldLayout label="Updated By">
                   <Input value={company?.updatedName ?? '-'} disabled />
-                </FormFieldWrapper>
+                </FormFieldLayout>
               </div>
             )}
 

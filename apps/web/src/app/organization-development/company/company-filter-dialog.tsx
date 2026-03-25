@@ -11,12 +11,12 @@ import {
   DialogTitle,
   Input,
   Button,
-  Label,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  FilterFieldLayout,
 } from '@nhcs/hcm-ui';
 import {
   CompanyGroupChooser,
@@ -110,25 +110,6 @@ export interface CompanyFilterDialogProps {
   onReset: () => void;
 }
 
-// ── Field wrapper ──
-
-function FilterField({
-  label,
-  children,
-  className,
-}: {
-  label: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={className}>
-      <Label className="font-semibold">{label}</Label>
-      <div className="mt-1">{children}</div>
-    </div>
-  );
-}
-
 // ── Component ──
 
 export function CompanyFilterDialog({
@@ -187,7 +168,7 @@ export function CompanyFilterDialog({
 
         <div className="space-y-4 py-2">
           {/* ── Search By (Fix 2: shadcn Select) ── */}
-          <FilterField label="Search">
+          <FilterFieldLayout label="Search">
             <div className="flex items-center gap-2">
               <Select
                 value={state.searchByType}
@@ -212,10 +193,10 @@ export function CompanyFilterDialog({
                 className="flex-1"
               />
             </div>
-          </FilterField>
+          </FilterFieldLayout>
 
           {/* ── Company Group ── */}
-          <FilterField label="Company Group">
+          <FilterFieldLayout label="Company Group">
             <CompanyGroupChooser
               value={state.companyGroup}
               onChange={(val) => dispatch({ type: 'SET_COMPANY_GROUP', value: val })}
@@ -225,19 +206,19 @@ export function CompanyFilterDialog({
               onQueryChange={setCgQuery}
               validateCode={validateCompanyGroupCode}
             />
-          </FilterField>
+          </FilterFieldLayout>
 
           {/* ── Address ── */}
-          <FilterField label="Address">
+          <FilterFieldLayout label="Address">
             <Input
               value={state.address}
               onChange={(e) => dispatch({ type: 'SET_ADDRESS', value: e.target.value })}
               placeholder="Enter address"
             />
-          </FilterField>
+          </FilterFieldLayout>
 
           {/* ── State/Area ── */}
-          <FilterField label="State/Area">
+          <FilterFieldLayout label="State/Area">
             <AreaChooser
               value={state.area}
               onChange={(val) => dispatch({ type: 'SET_AREA', value: val })}
@@ -246,10 +227,10 @@ export function CompanyFilterDialog({
               isLoading={areaList.isLoading}
               onQueryChange={setAreaQuery}
             />
-          </FilterField>
+          </FilterFieldLayout>
 
           {/* ── Status (Fix 2: shadcn Select) ── */}
-          <FilterField label="Status">
+          <FilterFieldLayout label="Status">
             <Select
               value={state.isActive}
               onValueChange={(value) =>
@@ -265,16 +246,16 @@ export function CompanyFilterDialog({
                 <SelectItem value="F">Inactive</SelectItem>
               </SelectContent>
             </Select>
-          </FilterField>
+          </FilterFieldLayout>
 
           {/* ── Company Alias ── */}
-          <FilterField label="Company Alias">
+          <FilterFieldLayout label="Company Alias">
             <Input
               value={state.companyAlias}
               onChange={(e) => dispatch({ type: 'SET_ALIAS', value: e.target.value })}
               placeholder="Enter alias"
             />
-          </FilterField>
+          </FilterFieldLayout>
         </div>
 
         <DialogFooter>

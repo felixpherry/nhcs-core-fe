@@ -89,8 +89,6 @@ export function CompanyList() {
 
   const statusMutation = trpc.organizationDevelopment.company.changeStatus.useMutation({
     onSuccess: () => {
-      const action = companyToToggle?.isActive === 'T' ? 'deactivated' : 'activated';
-      toast.success(`Company ${action} successfully`);
       setCompanyToToggle(null);
       invalidateList();
     },
@@ -271,10 +269,16 @@ export function CompanyList() {
         loading={statusMutation.isPending}
         onConfirm={() => {
           if (companyToToggle) {
-            statusMutation.mutate({
-              id: companyToToggle.companyId,
-              status: companyToToggle.isActive === 'T' ? 'F' : 'T',
-            });
+            const newStatus = companyToToggle.isActive === 'T' ? 'F' : 'T';
+            const actionLabel = newStatus === 'F' ? 'deactivated' : 'activated';
+            statusMutation.mutate(
+              { id: companyToToggle.companyId, status: newStatus },
+              {
+                onSuccess: () => {
+                  toast.success(`Company ${actionLabel} successfully`);
+                },
+              },
+            );
           }
         }}
       />

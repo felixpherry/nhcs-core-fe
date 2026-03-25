@@ -1,5 +1,5 @@
 import { PencilIcon, TrashIcon } from 'lucide-react';
-import { createColumns, Button, Checkbox, StatusBadge } from '@nhcs/hcm-ui';
+import { createColumns, Button, Checkbox } from '@nhcs/hcm-ui';
 import type { Company } from '@nhcs/api/src/routers/organization-development/company/company.schema';
 
 // ── Row action callbacks (injected by company-list.tsx) ──
@@ -61,25 +61,27 @@ export function createCompanyColumns(actions: CompanyRowActions) {
       ),
     },
 
-    // ── 3-6. Core fields ──
+    // ── 3. Company Code (clickable → view) — Fix 9: Button variant="link" ──
     {
       id: 'companyCode',
       accessorKey: 'companyCode',
       header: 'Company Code',
       sortable: true,
       cell: (_value, row) => (
-        <button
-          type="button"
-          className="text-primary hover:underline font-medium"
+        <Button
+          variant="link"
+          className="h-auto p-0 font-medium"
           onClick={(e) => {
             e.stopPropagation();
             actions.onView(row);
           }}
         >
           {row.companyCode}
-        </button>
+        </Button>
       ),
     },
+
+    // ── 4-6. Core fields ──
     {
       id: 'companyName',
       accessorKey: 'companyName',
@@ -171,17 +173,8 @@ export function createCompanyColumns(actions: CompanyRowActions) {
       cell: 'date',
     },
 
-    // ── 19. Status badge ──
-    {
-      id: 'status',
-      accessorKey: 'isActive',
-      header: 'Status',
-      cell: (value) => (
-        <StatusBadge
-          status={value === 'T' ? 'ACTIVE' : 'INACTIVE'}
-          variantMap={{ ACTIVE: 'default', INACTIVE: 'secondary' }}
-        />
-      ),
-    },
+    // ── Fix 7: Removed redundant StatusBadge column ──
+    // Active checkbox toggle already shows active/inactive state.
+    // No need for a separate StatusBadge column.
   ]);
 }
