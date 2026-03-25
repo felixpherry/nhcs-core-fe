@@ -1,6 +1,8 @@
 'use client';
 
-import { useReducer, useCallback, useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
+import { useForm } from '@tanstack/react-form';
+import { z } from 'zod';
 import { trpc } from '@/lib/trpc';
 import {
   Dialog,
@@ -14,6 +16,8 @@ import {
   Label,
   Checkbox,
   Textarea,
+  ConfirmDialog,
+  cn,
 } from '@nhcs/hcm-ui';
 import {
   CompanyGroupChooser,
@@ -30,100 +34,61 @@ import { toast } from 'sonner';
 
 export type FormMode = 'add' | 'edit' | 'view';
 
-interface CompanyFormData {
-  companyId: number;
-  companyCode: string;
-  companyName: string;
-  companyAlias: string;
-  companyGroupId: number | null;
-  address: string;
-  stateId: string | null;
-  cityId: string | null;
-  districtId: string | null;
-  subDistrictId: string | null;
-  zipCode: string | null;
-  phoneNumber: string;
-  isActive: 'T' | 'F';
-  additionalAttributes: Record<string, unknown>;
-}
+// ── Zod schema ──
 
-interface CompanyFormState {
-  data: CompanyFormData;
-  companyGroup: CompanyGroupFormValue | null;
-  area: AreaFormValue | null;
-  errors: Record<string, string>;
-  isSubmitting: boolean;
-}
+const companyFormSchema = z.object({
+  companyId: z.number(),
+  companyCode: z
+    .string()
+    .min(1, 'Company Code is required')
+    .max(30, 'Company Code must be at most 30 characters')
+    .regex(/^\S+$/, 'Company Code must not contain spaces')
+    .regex(
+      /^[a-zA-Z0-9_-]+$/,
+      'Company Code must be alphanumeric (dashes and underscores allowed)',
+    ),
+  companyName: z
+    .string()
+    .min(1, 'Company Name is required')
+    .max(80, 'Company Name must be at most 80 characters'),
+  companyAlias: z
+    .string()
+    .min(1, 'Company Alias is required')
+    .max(30, 'Company Alias must be at most 30 characters')
+    .regex(/^[a-zA-Z0-9]+$/, 'Company Alias must be alphanumeric'),
+  companyGroupId: z
+    .number({ message: 'Company Group is required' })
+    .min(1, 'Company Group is required'),
+  address: z
+    .string()
+    .min(1, 'Address is required')
+    .min(15, 'Address must be at least 15 characters'),
+  stateId: z.string().nullable(),
+  cityId: z.string().nullable(),
+  districtId: z.string().nullable(),
+  subDistrictId: z.string().nullable(),
+  zipCode: z.string().nullable(),
+  phoneNumber: z
+    .string()
+    .min(1, 'Phone Number is required')
+    .min(10, 'Phone Number must be at least 10 digits')
+    .regex(/^\d+$/, 'Phone Number must be numeric'),
+  isActive: z.enum(['T', 'F']),
+  additionalAttributes: z.record(z.string(), z.unknown()),
+});
 
-// ── Reducer ──
-
-type FormAction =
-  | { type: 'SET_FIELD'; name: keyof CompanyFormData; value: unknown }
-  | { type: 'SET_COMPANY_GROUP'; value: CompanyGroupFormValue | null }
-  | { type: 'SET_AREA'; value: AreaFormValue | null }
-  | { type: 'SET_ERRORS'; errors: Record<string, string> }
-  | { type: 'CLEAR_ERROR'; name: string }
-  | { type: 'SUBMIT_START' }
-  | { type: 'SUBMIT_END' }
-  | { type: 'RESET'; state: CompanyFormState };
-
-function formReducer(state: CompanyFormState, action: FormAction): CompanyFormState {
-  switch (action.type) {
-    case 'SET_FIELD':
-      return {
-        ...state,
-        data: { ...state.data, [action.name]: action.value },
-        errors: { ...state.errors, [action.name]: '' },
-      };
-    case 'SET_COMPANY_GROUP':
-      return {
-        ...state,
-        companyGroup: action.value,
-        data: {
-          ...state.data,
-          companyGroupId: action.value?.companyGroupId ?? null,
-        },
-        errors: { ...state.errors, companyGroupId: '' },
-      };
-    case 'SET_AREA':
-      return {
-        ...state,
-        area: action.value,
-        data: {
-          ...state.data,
-          stateId: action.value?.stateId ?? null,
-          cityId: action.value?.cityId ?? null,
-          districtId: action.value?.districtId ?? null,
-          subDistrictId: action.value?.subDistrictId ?? null,
-          zipCode: action.value?.zipCode ?? null,
-        },
-        errors: { ...state.errors, stateId: '' },
-      };
-    case 'SET_ERRORS':
-      return { ...state, errors: action.errors };
-    case 'CLEAR_ERROR':
-      return { ...state, errors: { ...state.errors, [action.name]: '' } };
-    case 'SUBMIT_START':
-      return { ...state, isSubmitting: true };
-    case 'SUBMIT_END':
-      return { ...state, isSubmitting: false };
-    case 'RESET':
-      return action.state;
-    default:
-      return state;
-  }
-}
+type CompanyFormValues = z.infer<typeof companyFormSchema>;
 
 // ── Helpers ──
 
-function createEmptyFormState(): CompanyFormState {
-  return {
-    data: {
+function createDefaultValues(company: Company | null): CompanyFormValues {
+  if (!company) {
+    return {
       companyId: 0,
       companyCode: '',
       companyName: '',
       companyAlias: '',
-      companyGroupId: null,
+      companyGroupId: 0,
       address: '',
       stateId: null,
       cityId: null,
@@ -133,110 +98,50 @@ function createEmptyFormState(): CompanyFormState {
       phoneNumber: '',
       isActive: 'T',
       additionalAttributes: {},
-    },
-    companyGroup: null,
-    area: null,
-    errors: {},
-    isSubmitting: false,
-  };
-}
+    };
+  }
 
-function companyToFormState(company: Company): CompanyFormState {
   return {
-    data: {
-      companyId: company.companyId,
-      companyCode: company.companyCode ?? '',
-      companyName: company.companyName ?? '',
-      companyAlias: company.companyAlias ?? '',
-      companyGroupId: company.companyGroupId,
-      address: company.address ?? '',
-      stateId: company.stateId,
-      cityId: company.cityId,
-      districtId: company.districtId,
-      subDistrictId: company.subDistrictId,
-      zipCode: company.zipCode,
-      phoneNumber: company.phoneNumber ?? '',
-      isActive: company.isActive ?? 'T',
-      additionalAttributes: (company.additionalAttributes as Record<string, unknown>) ?? {},
-    },
-    companyGroup: company.companyGroupId
-      ? {
-          companyGroupId: company.companyGroupId,
-          companyGroupCode: company.companyGroupCode ?? '',
-          companyGroupName: company.companyGroupName ?? '',
-        }
-      : null,
-    area: company.stateId
-      ? {
-          areaId: 0,
-          stateId: company.stateId ?? '',
-          stateName: company.stateName ?? '',
-          cityId: company.cityId ?? '',
-          cityName: company.cityName ?? '',
-          districtId: company.districtId ?? '',
-          districtName: company.districtName ?? '',
-          subDistrictId: company.subDistrictId ?? '',
-          subDistrictName: company.subDistrictName ?? '',
-          zipCode: company.zipCode ?? '',
-        }
-      : null,
-    errors: {},
-    isSubmitting: false,
+    companyId: company.companyId,
+    companyCode: company.companyCode ?? '',
+    companyName: company.companyName ?? '',
+    companyAlias: company.companyAlias ?? '',
+    companyGroupId: company.companyGroupId ?? 0,
+    address: company.address ?? '',
+    stateId: company.stateId,
+    cityId: company.cityId,
+    districtId: company.districtId,
+    subDistrictId: company.subDistrictId,
+    zipCode: company.zipCode,
+    phoneNumber: company.phoneNumber ?? '',
+    isActive: company.isActive ?? 'T',
+    additionalAttributes: (company.additionalAttributes as Record<string, unknown>) ?? {},
   };
 }
 
-function validate(data: CompanyFormData): Record<string, string> {
-  const errors: Record<string, string> = {};
+function companyToCompanyGroup(company: Company | null): CompanyGroupFormValue | null {
+  if (!company?.companyGroupId) return null;
+  return {
+    companyGroupId: company.companyGroupId,
+    companyGroupCode: company.companyGroupCode ?? '',
+    companyGroupName: company.companyGroupName ?? '',
+  };
+}
 
-  // Company Code: required | no_space | max:30 | code pattern (alphanumeric + dash/underscore)
-  if (!data.companyCode.trim()) {
-    errors.companyCode = 'Company Code is required';
-  } else if (/\s/.test(data.companyCode)) {
-    errors.companyCode = 'Company Code must not contain spaces';
-  } else if (data.companyCode.length > 30) {
-    errors.companyCode = 'Company Code must be at most 30 characters';
-  } else if (!/^[a-zA-Z0-9_-]+$/.test(data.companyCode)) {
-    errors.companyCode = 'Company Code must be alphanumeric (dashes and underscores allowed)';
-  }
-
-  // Company Name: required | max:80
-  if (!data.companyName.trim()) {
-    errors.companyName = 'Company Name is required';
-  } else if (data.companyName.length > 80) {
-    errors.companyName = 'Company Name must be at most 80 characters';
-  }
-
-  // Company Alias: required | alphanumeric | max:30
-  if (!data.companyAlias.trim()) {
-    errors.companyAlias = 'Company Alias is required';
-  } else if (!/^[a-zA-Z0-9]+$/.test(data.companyAlias)) {
-    errors.companyAlias = 'Company Alias must be alphanumeric';
-  } else if (data.companyAlias.length > 30) {
-    errors.companyAlias = 'Company Alias must be at most 30 characters';
-  }
-
-  // Company Group: required
-  if (data.companyGroupId === null || data.companyGroupId === 0) {
-    errors.companyGroupId = 'Company Group is required';
-  }
-
-  // Address: required | min:15
-  if (!data.address.trim()) {
-    errors.address = 'Address is required';
-  } else if (data.address.trim().length < 15) {
-    errors.address = 'Address must be at least 15 characters';
-  }
-
-  // Phone Number: required | numeric | min:10
-  if (!data.phoneNumber.trim()) {
-    errors.phoneNumber = 'Phone Number is required';
-  } else if (!/^\d+$/.test(data.phoneNumber)) {
-    errors.phoneNumber = 'Phone Number must be numeric';
-  } else if (data.phoneNumber.length < 10) {
-    errors.phoneNumber = 'Phone Number must be at least 10 digits';
-  }
-
-  return errors;
+function companyToArea(company: Company | null): AreaFormValue | null {
+  if (!company?.stateId) return null;
+  return {
+    areaId: 0,
+    stateId: company.stateId ?? '',
+    stateName: company.stateName ?? '',
+    cityId: company.cityId ?? '',
+    cityName: company.cityName ?? '',
+    districtId: company.districtId ?? '',
+    districtName: company.districtName ?? '',
+    subDistrictId: company.subDistrictId ?? '',
+    subDistrictName: company.subDistrictName ?? '',
+    zipCode: company.zipCode ?? '',
+  };
 }
 
 // ── Props ──
@@ -245,15 +150,13 @@ export interface CompanyFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   mode: FormMode;
-  /** Company data for edit/view mode. Null for add mode. */
   company: Company | null;
-  /** Called after successful save */
   onSuccess: () => void;
 }
 
-// ── Field component (reduces repetition) ──
+// ── Field wrapper ──
 
-function FormField({
+function FormFieldWrapper({
   label,
   required,
   error,
@@ -267,10 +170,9 @@ function FormField({
   className?: string;
 }) {
   return (
-    <div className={className}>
-      <Label>
+    <div className={cn('flex flex-col gap-2', className)}>
+      <Label className={cn(required && "after:content-['*'] after:text-destructive")}>
         {label}
-        {required && <span className="text-destructive ml-1">*</span>}
       </Label>
       {children}
       {error && <p className="text-sm text-destructive mt-1">{error}</p>}
@@ -291,22 +193,32 @@ export function CompanyFormDialog({
   const isEdit = mode === 'edit';
   const isAdd = mode === 'add';
 
-  // ── Form state ──
+  // ── Dirty close protection state ──
 
-  const [state, dispatch] = useReducer(
-    formReducer,
-    company ? companyToFormState(company) : createEmptyFormState(),
+  const [showDirtyConfirm, setShowDirtyConfirm] = useState(false);
+
+  // ── Chooser display state (separate from form values) ──
+
+  const [companyGroup, setCompanyGroup] = useState<CompanyGroupFormValue | null>(
+    companyToCompanyGroup(company),
   );
+  const [area, setArea] = useState<AreaFormValue | null>(companyToArea(company));
 
-  // Reset form when dialog opens with new data
-  useEffect(() => {
-    if (open) {
-      dispatch({
-        type: 'RESET',
-        state: company ? companyToFormState(company) : createEmptyFormState(),
-      });
-    }
-  }, [open, company]);
+  // ── TanStack Form ──
+
+  const form = useForm({
+    defaultValues: createDefaultValues(company),
+    validators: {
+      onSubmit: companyFormSchema,
+    },
+    onSubmit: async ({ value }) => {
+      saveMutation.mutate(value);
+    },
+  });
+
+  // ── Reset when dialog opens with new data ──
+  // TanStack Form doesn't have a built-in reset on prop change,
+  // so we key the dialog content on open+company to remount
 
   // ── Chooser query states ──
 
@@ -343,24 +255,7 @@ export function CompanyFormDialog({
     },
   });
 
-  // ── Submit handler ──
-
-  const handleSubmit = useCallback(() => {
-    const errors = validate(state.data);
-
-    if (Object.keys(errors).length > 0) {
-      dispatch({ type: 'SET_ERRORS', errors });
-      return;
-    }
-
-    dispatch({ type: 'SUBMIT_START' });
-
-    saveMutation.mutate(state.data, {
-      onSettled: () => {
-        dispatch({ type: 'SUBMIT_END' });
-      },
-    });
-  }, [state.data, saveMutation]);
+  // ── Validate company group code ──
 
   const utils = trpc.useUtils();
   const validateCompanyGroupCode = useCallback(
@@ -373,7 +268,6 @@ export function CompanyFormDialog({
         });
 
         const exactMatch = result.data.find((item) => item.companyGroupCode === code);
-
         if (!exactMatch) return null;
 
         return {
@@ -388,178 +282,284 @@ export function CompanyFormDialog({
     [utils],
   );
 
+  // ── Close handler with dirty check (5c) ──
+
+  const handleClose = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen && !isView && form.state.isDirty) {
+        setShowDirtyConfirm(true);
+        return;
+      }
+      onOpenChange(nextOpen);
+    },
+    [isView, form.state.isDirty, onOpenChange],
+  );
+
+  const handleForceClose = useCallback(() => {
+    setShowDirtyConfirm(false);
+    form.reset();
+    onOpenChange(false);
+  }, [form, onOpenChange]);
+
   // ── Dialog title ──
 
   const title = mode === 'add' ? 'Add Company' : mode === 'edit' ? 'Edit Company' : 'View Company';
 
+  // Remount form content when company changes
+  const formKey = company ? `${company.companyId}-${mode}` : `new-${mode}`;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>
-            {isAdd
-              ? 'Fill in the details to create a new company.'
-              : isEdit
-                ? 'Update the company details.'
-                : 'View company details.'}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto" key={formKey}>
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>
+              {isAdd
+                ? 'Fill in the details to create a new company.'
+                : isEdit
+                  ? 'Update the company details.'
+                  : 'View company details.'}
+            </DialogDescription>
+          </DialogHeader>
 
-        {/* ── Company ID (edit/view only) ── */}
-        {!isAdd && (
-          <FormField label="Company ID">
-            <Input value={state.data.companyId} disabled />
-          </FormField>
-        )}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              form.handleSubmit();
+            }}
+            className="space-y-4"
+          >
+            {/* ── Company ID (edit/view only) ── */}
+            {!isAdd && (
+              <FormFieldWrapper label="Company ID">
+                <Input value={company?.companyId ?? ''} disabled />
+              </FormFieldWrapper>
+            )}
 
-        {/* ── Company Code ── */}
-        <FormField label="Company Code" required={!isView} error={state.errors.companyCode}>
-          <Input
-            value={state.data.companyCode}
-            onChange={(e) =>
-              dispatch({ type: 'SET_FIELD', name: 'companyCode', value: e.target.value })
-            }
-            disabled={isView || isEdit}
-            placeholder="Enter company code"
-          />
-        </FormField>
+            {/* ── Company Code ── */}
+            <form.Field name="companyCode">
+              {(field) => (
+                <FormFieldWrapper
+                  label="Company Code"
+                  required={!isView}
+                  error={field.state.meta.errors?.[0]?.toString()}
+                >
+                  <Input
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    onBlur={field.handleBlur}
+                    disabled={isView || isEdit}
+                    placeholder="Enter company code"
+                  />
+                </FormFieldWrapper>
+              )}
+            </form.Field>
 
-        {/* ── Company Name ── */}
-        <FormField label="Company Name" required={!isView} error={state.errors.companyName}>
-          <Input
-            value={state.data.companyName}
-            onChange={(e) =>
-              dispatch({ type: 'SET_FIELD', name: 'companyName', value: e.target.value })
-            }
-            disabled={isView}
-            placeholder="Enter company name"
-          />
-        </FormField>
+            {/* ── Company Name ── */}
+            <form.Field name="companyName">
+              {(field) => (
+                <FormFieldWrapper
+                  label="Company Name"
+                  required={!isView}
+                  error={field.state.meta.errors?.[0]?.toString()}
+                >
+                  <Input
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    onBlur={field.handleBlur}
+                    disabled={isView}
+                    placeholder="Enter company name"
+                  />
+                </FormFieldWrapper>
+              )}
+            </form.Field>
 
-        {/* ── Company Alias ── */}
-        <FormField label="Company Alias" required={!isView} error={state.errors.companyAlias}>
-          <Input
-            value={state.data.companyAlias}
-            onChange={(e) =>
-              dispatch({ type: 'SET_FIELD', name: 'companyAlias', value: e.target.value })
-            }
-            disabled={isView}
-            placeholder="Enter company alias"
-          />
-        </FormField>
+            {/* ── Company Alias ── */}
+            <form.Field name="companyAlias">
+              {(field) => (
+                <FormFieldWrapper
+                  label="Company Alias"
+                  required={!isView}
+                  error={field.state.meta.errors?.[0]?.toString()}
+                >
+                  <Input
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    onBlur={field.handleBlur}
+                    disabled={isView}
+                    placeholder="Enter company alias"
+                  />
+                </FormFieldWrapper>
+              )}
+            </form.Field>
 
-        {/* ── Company Group (ChooserField) ── */}
-        <FormField label="Company Group" required={!isView} error={state.errors.companyGroupId}>
-          <CompanyGroupChooser
-            value={state.companyGroup}
-            onChange={(val) => dispatch({ type: 'SET_COMPANY_GROUP', value: val })}
-            listData={cgList.data?.data ?? []}
-            listCount={cgList.data?.count ?? 0}
-            isLoading={cgList.isLoading}
-            onQueryChange={setCgQuery}
-            validateCode={validateCompanyGroupCode}
-            disabled={isView}
-            required
-          />
-        </FormField>
+            {/* ── Company Group (ChooserField) ── */}
+            <form.Field name="companyGroupId">
+              {(field) => (
+                <FormFieldWrapper
+                  label="Company Group"
+                  required={!isView}
+                  error={field.state.meta.errors?.[0]?.toString()}
+                >
+                  <CompanyGroupChooser
+                    value={companyGroup}
+                    onChange={(val) => {
+                      setCompanyGroup(val);
+                      field.handleChange(val?.companyGroupId ?? 0);
+                    }}
+                    listData={cgList.data?.data ?? []}
+                    listCount={cgList.data?.count ?? 0}
+                    isLoading={cgList.isLoading}
+                    onQueryChange={setCgQuery}
+                    validateCode={validateCompanyGroupCode}
+                    disabled={isView}
+                    required
+                  />
+                </FormFieldWrapper>
+              )}
+            </form.Field>
 
-        {/* ── Address ── */}
-        <FormField label="Address" required={!isView} error={state.errors.address}>
-          <Textarea
-            value={state.data.address}
-            onChange={(e) =>
-              dispatch({ type: 'SET_FIELD', name: 'address', value: e.target.value })
-            }
-            disabled={isView}
-            placeholder="Enter address (min. 15 characters)"
-            rows={3}
-          />
-        </FormField>
+            {/* ── Address ── */}
+            <form.Field name="address">
+              {(field) => (
+                <FormFieldWrapper
+                  label="Address"
+                  required={!isView}
+                  error={field.state.meta.errors?.[0]?.toString()}
+                >
+                  <Textarea
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    onBlur={field.handleBlur}
+                    disabled={isView}
+                    placeholder="Enter address (min. 15 characters)"
+                    rows={3}
+                  />
+                </FormFieldWrapper>
+              )}
+            </form.Field>
 
-        {/* ── State/Area (ChooserField) ── */}
-        <FormField label="State/Area">
-          <AreaChooser
-            value={state.area}
-            onChange={(val) => dispatch({ type: 'SET_AREA', value: val })}
-            listData={areaList.data?.data ?? []}
-            listCount={areaList.data?.count ?? 0}
-            isLoading={areaList.isLoading}
-            onQueryChange={setAreaQuery}
-            disabled={isView}
-          />
-        </FormField>
+            {/* ── State/Area (ChooserField) ── */}
+            <FormFieldWrapper label="State/Area">
+              <AreaChooser
+                value={area}
+                onChange={(val) => {
+                  setArea(val);
+                  form.setFieldValue('stateId', val?.stateId ?? null);
+                  form.setFieldValue('cityId', val?.cityId ?? null);
+                  form.setFieldValue('districtId', val?.districtId ?? null);
+                  form.setFieldValue('subDistrictId', val?.subDistrictId ?? null);
+                  form.setFieldValue('zipCode', val?.zipCode ?? null);
+                }}
+                listData={areaList.data?.data ?? []}
+                listCount={areaList.data?.count ?? 0}
+                isLoading={areaList.isLoading}
+                onQueryChange={setAreaQuery}
+                disabled={isView}
+              />
+            </FormFieldWrapper>
 
-        {/* ── Cascading fields (auto-filled from Area) ── */}
-        <FormField label="City">
-          <Input value={state.area?.cityName ?? ''} disabled />
-        </FormField>
+            {/* ── Cascading fields (auto-filled from Area) ── */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormFieldWrapper label="City">
+                <Input value={area?.cityName ?? ''} disabled />
+              </FormFieldWrapper>
 
-        <FormField label="District">
-          <Input value={state.area?.districtName ?? ''} disabled />
-        </FormField>
+              <FormFieldWrapper label="District">
+                <Input value={area?.districtName ?? ''} disabled />
+              </FormFieldWrapper>
 
-        <FormField label="Sub District">
-          <Input value={state.area?.subDistrictName ?? ''} disabled />
-        </FormField>
+              <FormFieldWrapper label="Sub District">
+                <Input value={area?.subDistrictName ?? ''} disabled />
+              </FormFieldWrapper>
 
-        <FormField label="Zip Code">
-          <Input value={state.area?.zipCode ?? ''} disabled />
-        </FormField>
-
-        {/* ── Phone Number ── */}
-        <FormField label="Phone Number" required={!isView} error={state.errors.phoneNumber}>
-          <Input
-            value={state.data.phoneNumber}
-            onChange={(e) =>
-              dispatch({ type: 'SET_FIELD', name: 'phoneNumber', value: e.target.value })
-            }
-            disabled={isView}
-            placeholder="Enter phone number (min. 10 digits)"
-          />
-        </FormField>
-
-        {/* ── Status (edit/view only) ── */}
-        {!isAdd && (
-          <FormField label="Status">
-            <div className="flex items-center gap-2 pt-1">
-              <Checkbox checked={state.data.isActive === 'T'} disabled />
-              <span className="text-sm">{state.data.isActive === 'T' ? 'Active' : 'Inactive'}</span>
+              <FormFieldWrapper label="Zip Code">
+                <Input value={area?.zipCode ?? ''} disabled />
+              </FormFieldWrapper>
             </div>
-          </FormField>
-        )}
 
-        {/* ── Status Changed Date (edit/view only) ── */}
-        {!isAdd && company?.onChangeDate && (
-          <FormField label="Status Changed Date">
-            <Input value={company.onChangeDate} disabled />
-          </FormField>
-        )}
+            {/* ── Phone Number ── */}
+            <form.Field name="phoneNumber">
+              {(field) => (
+                <FormFieldWrapper
+                  label="Phone Number"
+                  required={!isView}
+                  error={field.state.meta.errors?.[0]?.toString()}
+                >
+                  <Input
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    onBlur={field.handleBlur}
+                    disabled={isView}
+                    placeholder="Enter phone number (min. 10 digits)"
+                  />
+                </FormFieldWrapper>
+              )}
+            </form.Field>
 
-        {/* ── Audit fields (edit/view only) ── */}
-        {!isAdd && (
-          <>
-            <FormField label="Created By">
-              <Input value={company?.createdName ?? '-'} disabled />
-            </FormField>
-            <FormField label="Updated By">
-              <Input value={company?.updatedName ?? '-'} disabled />
-            </FormField>
-          </>
-        )}
+            {/* ── Status (edit/view only) ── */}
+            {!isAdd && (
+              <FormFieldWrapper label="Status">
+                <div className="flex items-center gap-2 pt-1">
+                  <Checkbox checked={company?.isActive === 'T'} disabled />
+                  <span className="text-sm">
+                    {company?.isActive === 'T' ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+              </FormFieldWrapper>
+            )}
 
-        {/* ── Footer ── */}
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {isView ? 'Close' : 'Cancel'}
-          </Button>
-          {!isView && (
-            <Button onClick={handleSubmit} disabled={state.isSubmitting}>
-              {state.isSubmitting ? 'Saving...' : 'Save'}
-            </Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            {/* ── Status Changed Date (edit/view only) ── */}
+            {!isAdd && company?.onChangeDate && (
+              <FormFieldWrapper label="Status Changed Date">
+                <Input value={company.onChangeDate} disabled />
+              </FormFieldWrapper>
+            )}
+
+            {/* ── Audit fields (edit/view only) ── */}
+            {!isAdd && (
+              <div className="grid grid-cols-2 gap-4">
+                <FormFieldWrapper label="Created By">
+                  <Input value={company?.createdName ?? '-'} disabled />
+                </FormFieldWrapper>
+                <FormFieldWrapper label="Updated By">
+                  <Input value={company?.updatedName ?? '-'} disabled />
+                </FormFieldWrapper>
+              </div>
+            )}
+
+            {/* ── Footer ── */}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => handleClose(false)}>
+                {isView ? 'Close' : 'Cancel'}
+              </Button>
+              {!isView && (
+                <form.Subscribe selector={(state) => state.isSubmitting}>
+                  {(isSubmitting) => (
+                    <Button type="submit" disabled={isSubmitting || saveMutation.isPending}>
+                      {isSubmitting || saveMutation.isPending ? 'Saving...' : 'Save'}
+                    </Button>
+                  )}
+                </form.Subscribe>
+              )}
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── 5c: Dirty close protection ── */}
+      <ConfirmDialog
+        open={showDirtyConfirm}
+        onOpenChange={setShowDirtyConfirm}
+        title="Unsaved Changes"
+        description="You have unsaved changes. Are you sure you want to close? Your changes will be lost."
+        variant="destructive"
+        confirmLabel="Discard Changes"
+        cancelLabel="Keep Editing"
+        onConfirm={handleForceClose}
+      />
+    </>
   );
 }
