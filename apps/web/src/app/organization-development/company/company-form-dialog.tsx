@@ -13,6 +13,7 @@ import {
   Button,
   Label,
   Checkbox,
+  Textarea,
 } from '@nhcs/hcm-ui';
 import {
   CompanyGroupChooser,
@@ -430,7 +431,7 @@ export function CompanyFormDialog({
 
         {/* ── Address ── */}
         <FormField label="Address" required={!isView} error={state.errors.address}>
-          <textarea
+          <Textarea
             value={state.data.address}
             onChange={(e) =>
               dispatch({ type: 'SET_FIELD', name: 'address', value: e.target.value })
@@ -438,7 +439,6 @@ export function CompanyFormDialog({
             disabled={isView}
             placeholder="Enter address (min. 15 characters)"
             rows={3}
-            className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
           />
         </FormField>
 

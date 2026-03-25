@@ -14,6 +14,11 @@ import {
   ConfirmDialog,
   PageHeader,
   Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@nhcs/hcm-ui';
 import { createCompanyColumns, type CompanyRowActions } from './columns';
 import { CompanyFormDialog, type FormMode } from './company-form-dialog';
@@ -22,10 +27,10 @@ import type {
   Company,
   CompanyFilter,
 } from '@nhcs/api/src/routers/organization-development/company/company.schema';
-import type { Flag } from '@nhcs/types';
 
 export function CompanyList() {
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('T');
   const [filterOpen, setFilterOpen] = useState(false);
   const [advancedFilter, setAdvancedFilter] = useState<CompanyFilter | null>(null);
   const utils = trpc.useUtils();
@@ -42,34 +47,26 @@ export function CompanyList() {
     company: null,
   });
 
-  // ── Delete confirm state ──
+  // ── Delete / Status — just track which company, derive open from !== null ──
 
-  const [deleteState, setDeleteState] = useState<{
-    open: boolean;
-    company: Company | null;
-    loading: boolean;
-  }>({
-    open: false,
-    company: null,
-    loading: false,
+  const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
+  const [companyToToggle, setCompanyToToggle] = useState<Company | null>(null);
+
+  // ── Mutations — loading comes from isPending ──
+
+  const deleteMutation = trpc.organizationDevelopment.company.remove.useMutation({
+    onSuccess: () => {
+      setCompanyToDelete(null);
+      invalidateList();
+    },
   });
 
-  // ── Status toggle confirm state ──
-
-  const [statusState, setStatusState] = useState<{
-    open: boolean;
-    company: Company | null;
-    loading: boolean;
-  }>({
-    open: false,
-    company: null,
-    loading: false,
+  const statusMutation = trpc.organizationDevelopment.company.changeStatus.useMutation({
+    onSuccess: () => {
+      setCompanyToToggle(null);
+      invalidateList();
+    },
   });
-
-  // ── Mutations ──
-
-  const deleteMutation = trpc.organizationDevelopment.company.remove.useMutation();
-  const statusMutation = trpc.organizationDevelopment.company.changeStatus.useMutation();
 
   // ── Row actions ──
 
@@ -77,8 +74,8 @@ export function CompanyList() {
     () => ({
       onView: (company) => setFormState({ open: true, mode: 'view', company }),
       onEdit: (company) => setFormState({ open: true, mode: 'edit', company }),
-      onDelete: (company) => setDeleteState({ open: true, company, loading: false }),
-      onToggleStatus: (company) => setStatusState({ open: true, company, loading: false }),
+      onDelete: (company) => setCompanyToDelete(company),
+      onToggleStatus: (company) => setCompanyToToggle(company),
     }),
     [],
   );
@@ -93,7 +90,6 @@ export function CompanyList() {
     columns,
     getRowId: (row) => String(row.companyId),
   });
-  const [statusFilter, setStatusFilter] = useState<Flag | ''>('T');
 
   // ── Build query input ──
 
@@ -101,7 +97,7 @@ export function CompanyList() {
     ...table.queryState,
     filters: {
       companyName: search || null,
-      isActive: statusFilter || null,
+      isActive: statusFilter === 'all' ? null : statusFilter,
       ...(advancedFilter ?? {}),
     },
   });
@@ -137,16 +133,11 @@ export function CompanyList() {
     [table],
   );
 
-  // ── Advanced filter handlers ──
+  // ── Advanced filter handlers (Fix 4: no search sync) ──
 
   const handleApplyFilter = useCallback(
     (filter: CompanyFilter) => {
       setAdvancedFilter(filter);
-      if (filter.companyName) {
-        setSearch(filter.companyName);
-      } else if (filter.companyCode) {
-        setSearch(filter.companyCode);
-      }
       table.setPage(1);
     },
     [table],
@@ -154,45 +145,8 @@ export function CompanyList() {
 
   const handleResetFilter = useCallback(() => {
     setAdvancedFilter(null);
-    setSearch('');
     table.setPage(1);
   }, [table]);
-
-  // ── Delete handler ──
-
-  const handleDelete = useCallback(async () => {
-    if (!deleteState.company) return;
-
-    setDeleteState((prev) => ({ ...prev, loading: true }));
-
-    try {
-      await deleteMutation.mutateAsync({ id: deleteState.company.companyId });
-      setDeleteState({ open: false, company: null, loading: false });
-      invalidateList();
-    } catch {
-      setDeleteState((prev) => ({ ...prev, loading: false }));
-    }
-  }, [deleteState.company, deleteMutation, invalidateList]);
-
-  // ── Status toggle handler ──
-
-  const handleToggleStatus = useCallback(async () => {
-    if (!statusState.company) return;
-
-    const newStatus = statusState.company.isActive === 'T' ? 'F' : 'T';
-    setStatusState((prev) => ({ ...prev, loading: true }));
-
-    try {
-      await statusMutation.mutateAsync({
-        id: statusState.company.companyId,
-        status: newStatus,
-      });
-      setStatusState({ open: false, company: null, loading: false });
-      invalidateList();
-    } catch {
-      setStatusState((prev) => ({ ...prev, loading: false }));
-    }
-  }, [statusState.company, statusMutation, invalidateList]);
 
   return (
     <div className="space-y-4 p-6">
@@ -201,18 +155,25 @@ export function CompanyList() {
       <DataTable table={table}>
         <DataTableToolbar>
           <DataTableSearch value={search} onChange={handleSearch} placeholder="Search company..." />
-          <select
+
+          {/* Fix 2: shadcn Select instead of raw <select> */}
+          <Select
             value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value as 'T' | 'F' | '');
+            onValueChange={(value) => {
+              setStatusFilter(value);
               table.setPage(1);
             }}
-            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
           >
-            <option value="T">Active</option>
-            <option value="F">Inactive</option>
-            <option value="">All</option>
-          </select>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="T">Active</SelectItem>
+              <SelectItem value="F">Inactive</SelectItem>
+              <SelectItem value="all">All</SelectItem>
+            </SelectContent>
+          </Select>
+
           <DataTableActions>
             <Button variant="outline" onClick={() => setFilterOpen(true)}>
               Advanced Filter
@@ -243,36 +204,51 @@ export function CompanyList() {
         onReset={handleResetFilter}
       />
 
-      {/* ── Delete Confirmation ── */}
+      {/* ── Delete Confirmation (Fix 1: derived open, mutation.isPending) ── */}
       <ConfirmDialog
-        open={deleteState.open}
-        onOpenChange={(open) => setDeleteState((prev) => ({ ...prev, open }))}
+        open={!!companyToDelete}
+        onOpenChange={(open) => {
+          if (!open) setCompanyToDelete(null);
+        }}
         title="Delete Company"
         description={
-          deleteState.company
-            ? `Are you sure you want to delete "${deleteState.company.companyCode} — ${deleteState.company.companyName}"? This action cannot be undone.`
+          companyToDelete
+            ? `Are you sure you want to delete "${companyToDelete.companyCode} — ${companyToDelete.companyName}"? This action cannot be undone.`
             : ''
         }
         variant="destructive"
         confirmLabel="Delete"
-        loading={deleteState.loading}
-        onConfirm={handleDelete}
+        loading={deleteMutation.isPending}
+        onConfirm={() => {
+          if (companyToDelete) {
+            deleteMutation.mutate({ id: companyToDelete.companyId });
+          }
+        }}
       />
 
-      {/* ── Status Toggle Confirmation ── */}
+      {/* ── Status Toggle Confirmation (Fix 1: derived open, mutation.isPending) ── */}
       <ConfirmDialog
-        open={statusState.open}
-        onOpenChange={(open) => setStatusState((prev) => ({ ...prev, open }))}
+        open={!!companyToToggle}
+        onOpenChange={(open) => {
+          if (!open) setCompanyToToggle(null);
+        }}
         title="Change Status"
         description={
-          statusState.company
-            ? `Are you sure you want to ${statusState.company.isActive === 'T' ? 'deactivate' : 'activate'} "${statusState.company.companyCode} — ${statusState.company.companyName}"?`
+          companyToToggle
+            ? `Are you sure you want to ${companyToToggle.isActive === 'T' ? 'deactivate' : 'activate'} "${companyToToggle.companyCode} — ${companyToToggle.companyName}"?`
             : ''
         }
-        confirmLabel={statusState.company?.isActive === 'T' ? 'Deactivate' : 'Activate'}
-        variant={statusState.company?.isActive === 'T' ? 'destructive' : 'default'}
-        loading={statusState.loading}
-        onConfirm={handleToggleStatus}
+        confirmLabel={companyToToggle?.isActive === 'T' ? 'Deactivate' : 'Activate'}
+        variant={companyToToggle?.isActive === 'T' ? 'destructive' : 'default'}
+        loading={statusMutation.isPending}
+        onConfirm={() => {
+          if (companyToToggle) {
+            statusMutation.mutate({
+              id: companyToToggle.companyId,
+              status: companyToToggle.isActive === 'T' ? 'F' : 'T',
+            });
+          }
+        }}
       />
     </div>
   );

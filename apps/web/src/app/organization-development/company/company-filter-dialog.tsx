@@ -5,12 +5,18 @@ import { trpc } from '@/lib/trpc';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
   Input,
   Button,
   Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@nhcs/hcm-ui';
 import {
   CompanyGroupChooser,
@@ -24,7 +30,7 @@ import type { CompanyFilter } from '@nhcs/api/src/routers/organization-developme
 
 // ── Types ──
 
-type SearchByType = 'code' | 'name' | '';
+type SearchByType = 'code' | 'name' | 'none';
 
 interface FilterFormState {
   searchByType: SearchByType;
@@ -32,7 +38,7 @@ interface FilterFormState {
   companyGroup: CompanyGroupFormValue | null;
   address: string;
   area: AreaFormValue | null;
-  isActive: 'T' | 'F' | '';
+  isActive: 'T' | 'F' | 'all';
   companyAlias: string;
 }
 
@@ -42,17 +48,17 @@ type FilterAction =
   | { type: 'SET_COMPANY_GROUP'; value: CompanyGroupFormValue | null }
   | { type: 'SET_ADDRESS'; value: string }
   | { type: 'SET_AREA'; value: AreaFormValue | null }
-  | { type: 'SET_STATUS'; value: 'T' | 'F' | '' }
+  | { type: 'SET_STATUS'; value: 'T' | 'F' | 'all' }
   | { type: 'SET_ALIAS'; value: string }
   | { type: 'RESET' };
 
 const initialState: FilterFormState = {
-  searchByType: '',
+  searchByType: 'none',
   searchByValue: '',
   companyGroup: null,
   address: '',
   area: null,
-  isActive: '',
+  isActive: 'all',
   companyAlias: '',
 };
 
@@ -89,7 +95,7 @@ function buildFilterPayload(state: FilterFormState): CompanyFilter {
     cityId: state.area?.cityId || null,
     districtId: state.area?.districtId || null,
     subDistrictId: state.area?.subDistrictId || null,
-    isActive: state.isActive || null,
+    isActive: state.isActive === 'all' ? null : state.isActive,
     companyAlias: state.companyAlias || null,
   };
 }
@@ -189,31 +195,34 @@ export function CompanyFilterDialog({
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Advanced Filter</DialogTitle>
+          {/* Fix 5: Add DialogDescription for accessibility */}
+          <DialogDescription>Filter company records by multiple criteria.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* ── Search By ── */}
+          {/* ── Search By (Fix 2: shadcn Select) ── */}
           <FilterField label="Search">
             <div className="flex items-center gap-2">
-              <select
-                className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              <Select
                 value={state.searchByType}
-                onChange={(e) =>
-                  dispatch({
-                    type: 'SET_SEARCH_BY_TYPE',
-                    value: e.target.value as SearchByType,
-                  })
+                onValueChange={(value) =>
+                  dispatch({ type: 'SET_SEARCH_BY_TYPE', value: value as SearchByType })
                 }
               >
-                <option value="">--Choose--</option>
-                <option value="code">Code</option>
-                <option value="name">Name</option>
-              </select>
+                <SelectTrigger className="w-36">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">--Choose--</SelectItem>
+                  <SelectItem value="code">Code</SelectItem>
+                  <SelectItem value="name">Name</SelectItem>
+                </SelectContent>
+              </Select>
               <Input
                 value={state.searchByValue}
                 onChange={(e) => dispatch({ type: 'SET_SEARCH_BY_VALUE', value: e.target.value })}
                 placeholder="Input value"
-                disabled={!state.searchByType}
+                disabled={state.searchByType === 'none'}
                 className="flex-1"
               />
             </div>
@@ -253,22 +262,23 @@ export function CompanyFilterDialog({
             />
           </FilterField>
 
-          {/* ── Status ── */}
+          {/* ── Status (Fix 2: shadcn Select) ── */}
           <FilterField label="Status">
-            <select
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            <Select
               value={state.isActive}
-              onChange={(e) =>
-                dispatch({
-                  type: 'SET_STATUS',
-                  value: e.target.value as 'T' | 'F' | '',
-                })
+              onValueChange={(value) =>
+                dispatch({ type: 'SET_STATUS', value: value as 'T' | 'F' | 'all' })
               }
             >
-              <option value="">All</option>
-              <option value="T">Active</option>
-              <option value="F">Inactive</option>
-            </select>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="T">Active</SelectItem>
+                <SelectItem value="F">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
           </FilterField>
 
           {/* ── Company Alias ── */}
