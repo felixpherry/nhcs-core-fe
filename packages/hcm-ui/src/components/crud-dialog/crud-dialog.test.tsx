@@ -105,7 +105,9 @@ describe('CrudDialog', () => {
   describe('view footer', () => {
     it('shows only Close button in view mode', () => {
       render(<CrudDialog {...defaultProps({ mode: 'view' })} />);
-      expect(screen.getByText('Close')).toBeInTheDocument();
+      const buttons = screen.getAllByRole('button', { name: 'Close' });
+      const closeButton = buttons.find((b) => b.getAttribute('data-variant') === 'outline');
+      expect(closeButton).toBeTruthy();
       expect(screen.queryByText('Cancel')).not.toBeInTheDocument();
       expect(screen.queryByText('Create')).not.toBeInTheDocument();
     });
@@ -115,7 +117,9 @@ describe('CrudDialog', () => {
       const onClose = vi.fn();
 
       render(<CrudDialog {...defaultProps({ mode: 'view', onClose })} />);
-      await user.click(screen.getByText('Close'));
+      const buttons = screen.getAllByRole('button', { name: 'Close' });
+      const closeButton = buttons.find((b) => b.getAttribute('data-variant') === 'outline')!;
+      await user.click(closeButton);
 
       expect(onClose).toHaveBeenCalledTimes(1);
     });
