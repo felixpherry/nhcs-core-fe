@@ -153,8 +153,12 @@ export function CompanyFilterDialog({
     value: '',
   });
 
-  const cgList = trpc.common.companyGroup.list.useQuery(cgQuery);
-  const areaList = trpc.common.area.list.useQuery(areaQuery);
+  const cgList = trpc.common.companyGroup.list.useQuery(cgQuery, {
+    enabled: open,
+  });
+  const areaList = trpc.common.area.list.useQuery(areaQuery, {
+    enabled: open,
+  });
 
   const utils = trpc.useUtils();
 
