@@ -34,7 +34,7 @@ import { toast } from 'sonner';
 
 type FormState =
   | { mode: 'closed' }
-  | { mode: 'add' }
+  | { mode: 'create' }
   | { mode: 'edit'; company: Company }
   | { mode: 'view'; company: Company };
 
@@ -62,8 +62,8 @@ export function CompanyList() {
   const formKey =
     formState.mode === 'closed'
       ? 'closed'
-      : formState.mode === 'add'
-        ? 'add'
+      : formState.mode === 'create'
+        ? 'create'
         : `${formState.company.companyId}-${formState.mode}`;
 
   // ── Delete / Status ──
@@ -224,7 +224,7 @@ export function CompanyList() {
             <Button variant="outline" onClick={() => setFilterOpen(true)}>
               Advanced Filter
             </Button>
-            <Button onClick={() => setFormState({ mode: 'add' })}>Add Company</Button>
+            <Button onClick={() => setFormState({ mode: 'create' })}>Add Company</Button>
           </DataTableActions>
         </DataTableToolbar>
       </DataTable>
@@ -237,7 +237,7 @@ export function CompanyList() {
         onOpenChange={(open) => {
           if (!open) setFormState({ mode: 'closed' });
         }}
-        mode={formState.mode === 'closed' ? 'add' : formState.mode}
+        mode={formState.mode === 'closed' ? 'create' : formState.mode}
         company={formCompany}
         onSuccess={invalidateList}
       />

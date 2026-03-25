@@ -4,20 +4,8 @@ import { useState } from 'react';
 import { useForm } from '@tanstack/react-form';
 import { z } from 'zod';
 import { trpc } from '@/lib/trpc';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  Input,
-  Button,
-  Checkbox,
-  Textarea,
-  ConfirmDialog,
-  FormFieldLayout,
-} from '@nhcs/hcm-ui';
+import { CrudDialog, Input, Checkbox, Textarea, FormFieldLayout } from '@nhcs/hcm-ui';
+import type { FormMode } from '@nhcs/hcm-ui';
 import {
   CompanyGroupChooser,
   type CompanyGroupFormValue,
@@ -30,9 +18,9 @@ import type { Company } from '@nhcs/api/src/routers/organization-development/com
 import { toast } from 'sonner';
 import { useValidateCompanyGroupCode } from './hooks/use-validate-company-group-code';
 
-// ── Types ──
+// ── Re-export FormMode for company-list.tsx ──
 
-export type FormMode = 'add' | 'edit' | 'view';
+export type { FormMode } from '@nhcs/hcm-ui';
 
 // ── Zod schema ──
 
@@ -155,8 +143,6 @@ export interface CompanyFormDialogProps {
 }
 
 // ── Component ──
-// Note: Parent uses key={formKey} to force remount when company/mode changes.
-// This means all hooks (useForm, useState) reinitialize with correct data.
 
 export function CompanyFormDialog({
   open,
@@ -167,14 +153,9 @@ export function CompanyFormDialog({
 }: CompanyFormDialogProps) {
   const isView = mode === 'view';
   const isEdit = mode === 'edit';
-  const isAdd = mode === 'add';
-
-  // ── Dirty close protection state ──
-
-  const [showDirtyConfirm, setShowDirtyConfirm] = useState(false);
+  const isCreate = mode === 'create';
 
   // ── Chooser display state ──
-  // Safe to initialize from props because parent remounts via key
 
   const [companyGroup, setCompanyGroup] = useState<CompanyGroupFormValue | null>(
     companyToCompanyGroup(company),
@@ -182,12 +163,10 @@ export function CompanyFormDialog({
   const [area, setArea] = useState<AreaFormValue | null>(companyToArea(company));
 
   // ── TanStack Form ──
-  // Safe to use company in defaultValues because parent remounts via key
 
   const form = useForm({
     defaultValues: createDefaultValues(company),
     validators: {
-      // Fix 3: onBlur validation — show errors as fields are touched
       onBlur: companyFormSchema,
       onSubmit: companyFormSchema,
     },
@@ -222,7 +201,7 @@ export function CompanyFormDialog({
 
   const saveMutation = trpc.organizationDevelopment.company.save.useMutation({
     onSuccess: () => {
-      toast.success(isAdd ? 'Company created successfully' : 'Company updated successfully');
+      toast.success(isCreate ? 'Company created successfully' : 'Company updated successfully');
       onOpenChange(false);
       onSuccess();
     },
@@ -231,282 +210,226 @@ export function CompanyFormDialog({
     },
   });
 
-  // ── Fix 4: Shared validate hook ──
+  // ── Validate company group code ──
 
   const validateCompanyGroupCode = useValidateCompanyGroupCode();
 
-  // ── Close handler with dirty check ──
-
-  const handleClose = (nextOpen: boolean) => {
-    if (!nextOpen && !isView && form.state.isDirty) {
-      setShowDirtyConfirm(true);
-      return;
-    }
-    onOpenChange(nextOpen);
-  };
-
-  const handleForceClose = () => {
-    setShowDirtyConfirm(false);
-    onOpenChange(false);
-  };
-
-  // ── Dialog title ──
-
-  const title = mode === 'add' ? 'Add Company' : mode === 'edit' ? 'Edit Company' : 'View Company';
-
   return (
-    <>
-      <Dialog open={open} onOpenChange={handleClose}>
-        {/* Fix 1: No key here — parent uses key on <CompanyFormDialog> */}
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{title}</DialogTitle>
-            <DialogDescription>
-              {isAdd
-                ? 'Fill in the details to create a new company.'
-                : isEdit
-                  ? 'Update the company details.'
-                  : 'View company details.'}
-            </DialogDescription>
-          </DialogHeader>
+    <CrudDialog
+      isOpen={open}
+      mode={mode}
+      entityName="Company"
+      isDirty={form.state.isDirty}
+      isSubmitting={saveMutation.isPending}
+      onClose={() => onOpenChange(false)}
+      onForceClose={() => onOpenChange(false)}
+      onSubmit={() => form.handleSubmit()}
+    >
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          form.handleSubmit();
+        }}
+        className="space-y-4"
+      >
+        {/* ── Company ID (edit/view only) ── */}
+        {!isCreate && (
+          <FormFieldLayout label="Company ID">
+            <Input value={company?.companyId ?? ''} disabled />
+          </FormFieldLayout>
+        )}
 
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              form.handleSubmit();
-            }}
-            className="space-y-4"
-          >
-            {/* ── Company ID (edit/view only) ── */}
-            {!isAdd && (
-              <FormFieldLayout label="Company ID">
-                <Input value={company?.companyId ?? ''} disabled />
-              </FormFieldLayout>
-            )}
-
-            {/* ── Company Code ── */}
-            <form.Field name="companyCode">
-              {(field) => (
-                <FormFieldLayout
-                  label="Company Code"
-                  required={!isView}
-                  error={field.state.meta.errors?.[0]?.toString()}
-                >
-                  <Input
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                    disabled={isView || isEdit}
-                    placeholder="Enter company code"
-                  />
-                </FormFieldLayout>
-              )}
-            </form.Field>
-
-            {/* ── Company Name ── */}
-            <form.Field name="companyName">
-              {(field) => (
-                <FormFieldLayout
-                  label="Company Name"
-                  required={!isView}
-                  error={field.state.meta.errors?.[0]?.toString()}
-                >
-                  <Input
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                    disabled={isView}
-                    placeholder="Enter company name"
-                  />
-                </FormFieldLayout>
-              )}
-            </form.Field>
-
-            {/* ── Company Alias ── */}
-            <form.Field name="companyAlias">
-              {(field) => (
-                <FormFieldLayout
-                  label="Company Alias"
-                  required={!isView}
-                  error={field.state.meta.errors?.[0]?.toString()}
-                >
-                  <Input
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                    disabled={isView}
-                    placeholder="Enter company alias"
-                  />
-                </FormFieldLayout>
-              )}
-            </form.Field>
-
-            {/* ── Company Group (ChooserField) ── */}
-            <form.Field name="companyGroupId">
-              {(field) => (
-                <FormFieldLayout
-                  label="Company Group"
-                  required={!isView}
-                  error={field.state.meta.errors?.[0]?.toString()}
-                >
-                  <CompanyGroupChooser
-                    value={companyGroup}
-                    onChange={(val) => {
-                      setCompanyGroup(val);
-                      field.handleChange(val?.companyGroupId ?? 0);
-                    }}
-                    listData={cgList.data?.data ?? []}
-                    listCount={cgList.data?.count ?? 0}
-                    isLoading={cgList.isLoading}
-                    onQueryChange={setCgQuery}
-                    validateCode={validateCompanyGroupCode}
-                    disabled={isView}
-                    required
-                  />
-                </FormFieldLayout>
-              )}
-            </form.Field>
-
-            {/* ── Address ── */}
-            <form.Field name="address">
-              {(field) => (
-                <FormFieldLayout
-                  label="Address"
-                  required={!isView}
-                  error={field.state.meta.errors?.[0]?.toString()}
-                >
-                  <Textarea
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                    disabled={isView}
-                    placeholder="Enter address (min. 15 characters)"
-                    rows={3}
-                  />
-                </FormFieldLayout>
-              )}
-            </form.Field>
-
-            {/* ── State/Area (ChooserField) ── */}
-            <FormFieldLayout label="State/Area">
-              <AreaChooser
-                value={area}
-                onChange={(val) => {
-                  setArea(val);
-                  form.setFieldValue('stateId', val?.stateId ?? null);
-                  form.setFieldValue('cityId', val?.cityId ?? null);
-                  form.setFieldValue('districtId', val?.districtId ?? null);
-                  form.setFieldValue('subDistrictId', val?.subDistrictId ?? null);
-                  form.setFieldValue('zipCode', val?.zipCode ?? null);
-                }}
-                listData={areaList.data?.data ?? []}
-                listCount={areaList.data?.count ?? 0}
-                isLoading={areaList.isLoading}
-                onQueryChange={setAreaQuery}
-                disabled={isView}
+        {/* ── Company Code ── */}
+        <form.Field name="companyCode">
+          {(field) => (
+            <FormFieldLayout
+              label="Company Code"
+              required={!isView}
+              error={field.state.meta.errors?.[0]?.toString()}
+            >
+              <Input
+                value={field.state.value}
+                onChange={(e) => field.handleChange(e.target.value)}
+                onBlur={field.handleBlur}
+                disabled={isView || isEdit}
+                placeholder="Enter company code"
               />
             </FormFieldLayout>
+          )}
+        </form.Field>
 
-            {/* ── Cascading fields (auto-filled from Area) ── */}
-            <div className="grid grid-cols-2 gap-4">
-              <FormFieldLayout label="City">
-                <Input value={area?.cityName ?? ''} disabled />
-              </FormFieldLayout>
+        {/* ── Company Name ── */}
+        <form.Field name="companyName">
+          {(field) => (
+            <FormFieldLayout
+              label="Company Name"
+              required={!isView}
+              error={field.state.meta.errors?.[0]?.toString()}
+            >
+              <Input
+                value={field.state.value}
+                onChange={(e) => field.handleChange(e.target.value)}
+                onBlur={field.handleBlur}
+                disabled={isView}
+                placeholder="Enter company name"
+              />
+            </FormFieldLayout>
+          )}
+        </form.Field>
 
-              <FormFieldLayout label="District">
-                <Input value={area?.districtName ?? ''} disabled />
-              </FormFieldLayout>
+        {/* ── Company Alias ── */}
+        <form.Field name="companyAlias">
+          {(field) => (
+            <FormFieldLayout
+              label="Company Alias"
+              required={!isView}
+              error={field.state.meta.errors?.[0]?.toString()}
+            >
+              <Input
+                value={field.state.value}
+                onChange={(e) => field.handleChange(e.target.value)}
+                onBlur={field.handleBlur}
+                disabled={isView}
+                placeholder="Enter company alias"
+              />
+            </FormFieldLayout>
+          )}
+        </form.Field>
 
-              <FormFieldLayout label="Sub District">
-                <Input value={area?.subDistrictName ?? ''} disabled />
-              </FormFieldLayout>
+        {/* ── Company Group (ChooserField) ── */}
+        <form.Field name="companyGroupId">
+          {(field) => (
+            <FormFieldLayout
+              label="Company Group"
+              required={!isView}
+              error={field.state.meta.errors?.[0]?.toString()}
+            >
+              <CompanyGroupChooser
+                value={companyGroup}
+                onChange={(val) => {
+                  setCompanyGroup(val);
+                  field.handleChange(val?.companyGroupId ?? 0);
+                }}
+                listData={cgList.data?.data ?? []}
+                listCount={cgList.data?.count ?? 0}
+                isLoading={cgList.isLoading}
+                onQueryChange={setCgQuery}
+                validateCode={validateCompanyGroupCode}
+                disabled={isView}
+                required
+              />
+            </FormFieldLayout>
+          )}
+        </form.Field>
 
-              <FormFieldLayout label="Zip Code">
-                <Input value={area?.zipCode ?? ''} disabled />
-              </FormFieldLayout>
+        {/* ── Address ── */}
+        <form.Field name="address">
+          {(field) => (
+            <FormFieldLayout
+              label="Address"
+              required={!isView}
+              error={field.state.meta.errors?.[0]?.toString()}
+            >
+              <Textarea
+                value={field.state.value}
+                onChange={(e) => field.handleChange(e.target.value)}
+                onBlur={field.handleBlur}
+                disabled={isView}
+                placeholder="Enter address (min. 15 characters)"
+                rows={3}
+              />
+            </FormFieldLayout>
+          )}
+        </form.Field>
+
+        {/* ── State/Area (ChooserField) ── */}
+        <FormFieldLayout label="State/Area">
+          <AreaChooser
+            value={area}
+            onChange={(val) => {
+              setArea(val);
+              form.setFieldValue('stateId', val?.stateId ?? null);
+              form.setFieldValue('cityId', val?.cityId ?? null);
+              form.setFieldValue('districtId', val?.districtId ?? null);
+              form.setFieldValue('subDistrictId', val?.subDistrictId ?? null);
+              form.setFieldValue('zipCode', val?.zipCode ?? null);
+            }}
+            listData={areaList.data?.data ?? []}
+            listCount={areaList.data?.count ?? 0}
+            isLoading={areaList.isLoading}
+            onQueryChange={setAreaQuery}
+            disabled={isView}
+          />
+        </FormFieldLayout>
+
+        {/* ── Cascading fields (auto-filled from Area) ── */}
+        <div className="grid grid-cols-2 gap-4">
+          <FormFieldLayout label="City">
+            <Input value={area?.cityName ?? ''} disabled />
+          </FormFieldLayout>
+
+          <FormFieldLayout label="District">
+            <Input value={area?.districtName ?? ''} disabled />
+          </FormFieldLayout>
+
+          <FormFieldLayout label="Sub District">
+            <Input value={area?.subDistrictName ?? ''} disabled />
+          </FormFieldLayout>
+
+          <FormFieldLayout label="Zip Code">
+            <Input value={area?.zipCode ?? ''} disabled />
+          </FormFieldLayout>
+        </div>
+
+        {/* ── Phone Number ── */}
+        <form.Field name="phoneNumber">
+          {(field) => (
+            <FormFieldLayout
+              label="Phone Number"
+              required={!isView}
+              error={field.state.meta.errors?.[0]?.toString()}
+            >
+              <Input
+                value={field.state.value}
+                onChange={(e) => field.handleChange(e.target.value)}
+                onBlur={field.handleBlur}
+                disabled={isView}
+                placeholder="Enter phone number (min. 10 digits)"
+              />
+            </FormFieldLayout>
+          )}
+        </form.Field>
+
+        {/* ── Status (edit/view only) ── */}
+        {!isCreate && (
+          <FormFieldLayout label="Status">
+            <div className="flex items-center gap-2 pt-1">
+              <Checkbox checked={company?.isActive === 'T'} disabled />
+              <span className="text-sm">{company?.isActive === 'T' ? 'Active' : 'Inactive'}</span>
             </div>
+          </FormFieldLayout>
+        )}
 
-            {/* ── Phone Number ── */}
-            <form.Field name="phoneNumber">
-              {(field) => (
-                <FormFieldLayout
-                  label="Phone Number"
-                  required={!isView}
-                  error={field.state.meta.errors?.[0]?.toString()}
-                >
-                  <Input
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                    disabled={isView}
-                    placeholder="Enter phone number (min. 10 digits)"
-                  />
-                </FormFieldLayout>
-              )}
-            </form.Field>
+        {/* ── Status Changed Date (edit/view only) ── */}
+        {!isCreate && company?.onChangeDate && (
+          <FormFieldLayout label="Status Changed Date">
+            <Input value={company.onChangeDate} disabled />
+          </FormFieldLayout>
+        )}
 
-            {/* ── Status (edit/view only) ── */}
-            {!isAdd && (
-              <FormFieldLayout label="Status">
-                <div className="flex items-center gap-2 pt-1">
-                  <Checkbox checked={company?.isActive === 'T'} disabled />
-                  <span className="text-sm">
-                    {company?.isActive === 'T' ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
-              </FormFieldLayout>
-            )}
-
-            {/* ── Status Changed Date (edit/view only) ── */}
-            {!isAdd && company?.onChangeDate && (
-              <FormFieldLayout label="Status Changed Date">
-                <Input value={company.onChangeDate} disabled />
-              </FormFieldLayout>
-            )}
-
-            {/* ── Audit fields (edit/view only) ── */}
-            {!isAdd && (
-              <div className="grid grid-cols-2 gap-4">
-                <FormFieldLayout label="Created By">
-                  <Input value={company?.createdName ?? '-'} disabled />
-                </FormFieldLayout>
-                <FormFieldLayout label="Updated By">
-                  <Input value={company?.updatedName ?? '-'} disabled />
-                </FormFieldLayout>
-              </div>
-            )}
-
-            {/* ── Footer ── */}
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => handleClose(false)}>
-                {isView ? 'Close' : 'Cancel'}
-              </Button>
-              {!isView && (
-                <form.Subscribe selector={(state) => state.isSubmitting}>
-                  {(isSubmitting) => (
-                    <Button type="submit" disabled={isSubmitting || saveMutation.isPending}>
-                      {isSubmitting || saveMutation.isPending ? 'Saving...' : 'Save'}
-                    </Button>
-                  )}
-                </form.Subscribe>
-              )}
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Dirty close protection ── */}
-      <ConfirmDialog
-        open={showDirtyConfirm}
-        onOpenChange={setShowDirtyConfirm}
-        title="Unsaved Changes"
-        description="You have unsaved changes. Are you sure you want to close? Your changes will be lost."
-        variant="destructive"
-        confirmLabel="Discard Changes"
-        cancelLabel="Keep Editing"
-        onConfirm={handleForceClose}
-      />
-    </>
+        {/* ── Audit fields (edit/view only) ── */}
+        {!isCreate && (
+          <div className="grid grid-cols-2 gap-4">
+            <FormFieldLayout label="Created By">
+              <Input value={company?.createdName ?? '-'} disabled />
+            </FormFieldLayout>
+            <FormFieldLayout label="Updated By">
+              <Input value={company?.updatedName ?? '-'} disabled />
+            </FormFieldLayout>
+          </div>
+        )}
+      </form>
+    </CrudDialog>
   );
 }
