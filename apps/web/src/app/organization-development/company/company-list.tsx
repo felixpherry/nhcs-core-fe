@@ -27,6 +27,7 @@ import type {
   Company,
   CompanyFilter,
 } from '@nhcs/api/src/routers/organization-development/company/company.schema';
+import { toast } from 'sonner';
 
 export function CompanyList() {
   const [search, setSearch] = useState('');
@@ -58,13 +59,22 @@ export function CompanyList() {
     onSuccess: () => {
       setCompanyToDelete(null);
       invalidateList();
+      toast.success('Company deleted successfully');
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to delete company');
     },
   });
 
   const statusMutation = trpc.organizationDevelopment.company.changeStatus.useMutation({
     onSuccess: () => {
+      const action = companyToToggle?.isActive === 'T' ? 'deactivated' : 'activated';
+      toast.success(`Company ${action} successfully`);
       setCompanyToToggle(null);
       invalidateList();
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to change status');
     },
   });
 

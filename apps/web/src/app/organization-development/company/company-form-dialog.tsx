@@ -24,6 +24,7 @@ import {
   type AreaQueryParams,
 } from '@nhcs/features';
 import type { Company } from '@nhcs/api/src/routers/organization-development/company/company.schema';
+import { toast } from 'sonner';
 
 // ── Types ──
 
@@ -329,8 +330,12 @@ export function CompanyFormDialog({
 
   const saveMutation = trpc.organizationDevelopment.company.save.useMutation({
     onSuccess: () => {
+      toast.success(isAdd ? 'Company created successfully' : 'Company updated successfully');
       onOpenChange(false);
       onSuccess();
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to save company');
     },
   });
 
