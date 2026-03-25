@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQueryState, parseAsString } from 'nuqs';
 import { trpc } from '@/lib/trpc';
 import {
   useDataTable,
@@ -28,10 +29,16 @@ import type {
   CompanyFilter,
 } from '@nhcs/api/src/routers/organization-development/company/company.schema';
 import { toast } from 'sonner';
+import { useState } from 'react';
 
 export function CompanyList() {
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('T');
+  // ── URL state (persisted in query params) ──
+
+  const [search, setSearch] = useQueryState('search', parseAsString.withDefault(''));
+  const [statusFilter, setStatusFilter] = useQueryState('status', parseAsString.withDefault('T'));
+
+  // ── Non-URL state (transient UI) ──
+
   const [filterOpen, setFilterOpen] = useState(false);
   const [advancedFilter, setAdvancedFilter] = useState<CompanyFilter | null>(null);
   const utils = trpc.useUtils();
@@ -48,12 +55,12 @@ export function CompanyList() {
     company: null,
   });
 
-  // ── Delete / Status — just track which company, derive open from !== null ──
+  // ── Delete / Status ──
 
   const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
   const [companyToToggle, setCompanyToToggle] = useState<Company | null>(null);
 
-  // ── Mutations — loading comes from isPending ──
+  // ── Mutations ──
 
   const deleteMutation = trpc.organizationDevelopment.company.remove.useMutation({
     onSuccess: () => {
@@ -137,13 +144,13 @@ export function CompanyList() {
 
   const handleSearch = useCallback(
     (value: string) => {
-      setSearch(value);
+      setSearch(value || null); // null removes from URL
       table.setPage(1);
     },
-    [table],
+    [setSearch, table],
   );
 
-  // ── Advanced filter handlers (Fix 4: no search sync) ──
+  // ── Advanced filter handlers ──
 
   const handleApplyFilter = useCallback(
     (filter: CompanyFilter) => {
@@ -166,7 +173,6 @@ export function CompanyList() {
         <DataTableToolbar>
           <DataTableSearch value={search} onChange={handleSearch} placeholder="Search company..." />
 
-          {/* Fix 2: shadcn Select instead of raw <select> */}
           <Select
             value={statusFilter}
             onValueChange={(value) => {
@@ -197,7 +203,6 @@ export function CompanyList() {
 
       <DataTablePagination table={table} />
 
-      {/* ── Form Dialog ── */}
       <CompanyFormDialog
         open={formState.open}
         onOpenChange={(open) => setFormState((prev) => ({ ...prev, open }))}
@@ -206,7 +211,6 @@ export function CompanyList() {
         onSuccess={invalidateList}
       />
 
-      {/* ── Advanced Filter Dialog ── */}
       <CompanyFilterDialog
         open={filterOpen}
         onOpenChange={setFilterOpen}
@@ -214,7 +218,6 @@ export function CompanyList() {
         onReset={handleResetFilter}
       />
 
-      {/* ── Delete Confirmation (Fix 1: derived open, mutation.isPending) ── */}
       <ConfirmDialog
         open={!!companyToDelete}
         onOpenChange={(open) => {
@@ -236,7 +239,6 @@ export function CompanyList() {
         }}
       />
 
-      {/* ── Status Toggle Confirmation (Fix 1: derived open, mutation.isPending) ── */}
       <ConfirmDialog
         open={!!companyToToggle}
         onOpenChange={(open) => {
