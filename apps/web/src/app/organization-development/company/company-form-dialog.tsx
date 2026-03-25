@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useForm } from '@tanstack/react-form';
 import { z } from 'zod';
 import { trpc } from '@/lib/trpc';
@@ -29,6 +29,7 @@ import {
 } from '@nhcs/features';
 import type { Company } from '@nhcs/api/src/routers/organization-development/company/company.schema';
 import { toast } from 'sonner';
+import { useValidateCompanyGroupCode } from './hooks/use-validate-company-group-code';
 
 // ── Types ──
 
@@ -181,6 +182,8 @@ function FormFieldWrapper({
 }
 
 // ── Component ──
+// Note: Parent uses key={formKey} to force remount when company/mode changes.
+// This means all hooks (useForm, useState) reinitialize with correct data.
 
 export function CompanyFormDialog({
   open,
@@ -197,7 +200,8 @@ export function CompanyFormDialog({
 
   const [showDirtyConfirm, setShowDirtyConfirm] = useState(false);
 
-  // ── Chooser display state (separate from form values) ──
+  // ── Chooser display state ──
+  // Safe to initialize from props because parent remounts via key
 
   const [companyGroup, setCompanyGroup] = useState<CompanyGroupFormValue | null>(
     companyToCompanyGroup(company),
@@ -205,20 +209,19 @@ export function CompanyFormDialog({
   const [area, setArea] = useState<AreaFormValue | null>(companyToArea(company));
 
   // ── TanStack Form ──
+  // Safe to use company in defaultValues because parent remounts via key
 
   const form = useForm({
     defaultValues: createDefaultValues(company),
     validators: {
+      // Fix 3: onBlur validation — show errors as fields are touched
+      onBlur: companyFormSchema,
       onSubmit: companyFormSchema,
     },
     onSubmit: async ({ value }) => {
       saveMutation.mutate(value);
     },
   });
-
-  // ── Reset when dialog opens with new data ──
-  // TanStack Form doesn't have a built-in reset on prop change,
-  // so we key the dialog content on open+company to remount
 
   // ── Chooser query states ──
 
@@ -236,10 +239,10 @@ export function CompanyFormDialog({
   });
 
   const cgList = trpc.common.companyGroup.list.useQuery(cgQuery, {
-    enabled: open,
+    enabled: open && !isView,
   });
   const areaList = trpc.common.area.list.useQuery(areaQuery, {
-    enabled: open,
+    enabled: open && !isView,
   });
 
   // ── Save mutation ──
@@ -255,63 +258,34 @@ export function CompanyFormDialog({
     },
   });
 
-  // ── Validate company group code ──
+  // ── Fix 4: Shared validate hook ──
 
-  const utils = trpc.useUtils();
-  const validateCompanyGroupCode = useCallback(
-    async (code: string): Promise<CompanyGroupFormValue | null> => {
-      try {
-        const result = await utils.common.companyGroup.list.fetch({
-          page: 1,
-          limit: 2,
-          search: code,
-        });
+  const validateCompanyGroupCode = useValidateCompanyGroupCode();
 
-        const exactMatch = result.data.find((item) => item.companyGroupCode === code);
-        if (!exactMatch) return null;
+  // ── Close handler with dirty check ──
 
-        return {
-          companyGroupId: exactMatch.companyGroupId,
-          companyGroupCode: exactMatch.companyGroupCode ?? '',
-          companyGroupName: exactMatch.companyGroupName ?? '',
-        };
-      } catch {
-        return null;
-      }
-    },
-    [utils],
-  );
+  const handleClose = (nextOpen: boolean) => {
+    if (!nextOpen && !isView && form.state.isDirty) {
+      setShowDirtyConfirm(true);
+      return;
+    }
+    onOpenChange(nextOpen);
+  };
 
-  // ── Close handler with dirty check (5c) ──
-
-  const handleClose = useCallback(
-    (nextOpen: boolean) => {
-      if (!nextOpen && !isView && form.state.isDirty) {
-        setShowDirtyConfirm(true);
-        return;
-      }
-      onOpenChange(nextOpen);
-    },
-    [isView, form.state.isDirty, onOpenChange],
-  );
-
-  const handleForceClose = useCallback(() => {
+  const handleForceClose = () => {
     setShowDirtyConfirm(false);
-    form.reset();
     onOpenChange(false);
-  }, [form, onOpenChange]);
+  };
 
   // ── Dialog title ──
 
   const title = mode === 'add' ? 'Add Company' : mode === 'edit' ? 'Edit Company' : 'View Company';
 
-  // Remount form content when company changes
-  const formKey = company ? `${company.companyId}-${mode}` : `new-${mode}`;
-
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto" key={formKey}>
+        {/* Fix 1: No key here — parent uses key on <CompanyFormDialog> */}
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription>
@@ -549,7 +523,7 @@ export function CompanyFormDialog({
         </DialogContent>
       </Dialog>
 
-      {/* ── 5c: Dirty close protection ── */}
+      {/* ── Dirty close protection ── */}
       <ConfirmDialog
         open={showDirtyConfirm}
         onOpenChange={setShowDirtyConfirm}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useQueryState, parseAsString } from 'nuqs';
 import { trpc } from '@/lib/trpc';
 import {
@@ -22,14 +22,21 @@ import {
   SelectValue,
 } from '@nhcs/hcm-ui';
 import { createCompanyColumns, type CompanyRowActions } from './columns';
-import { CompanyFormDialog, type FormMode } from './company-form-dialog';
+import { CompanyFormDialog } from './company-form-dialog';
 import { CompanyFilterDialog } from './company-filter-dialog';
 import type {
   Company,
   CompanyFilter,
 } from '@nhcs/api/src/routers/organization-development/company/company.schema';
 import { toast } from 'sonner';
-import { useState } from 'react';
+
+// ── Fix 2: Discriminated union for form state ──
+
+type FormState =
+  | { mode: 'closed' }
+  | { mode: 'add' }
+  | { mode: 'edit'; company: Company }
+  | { mode: 'view'; company: Company };
 
 export function CompanyList() {
   // ── URL state (persisted in query params) ──
@@ -43,17 +50,24 @@ export function CompanyList() {
   const [advancedFilter, setAdvancedFilter] = useState<CompanyFilter | null>(null);
   const utils = trpc.useUtils();
 
-  // ── Form dialog state ──
+  // ── Fix 2: Discriminated union — impossible to have edit mode with null company ──
 
-  const [formState, setFormState] = useState<{
-    open: boolean;
-    mode: FormMode;
-    company: Company | null;
-  }>({
-    open: false,
-    mode: 'add',
-    company: null,
-  });
+  const [formState, setFormState] = useState<FormState>({ mode: 'closed' });
+
+  // ── Derived from discriminated union ──
+
+  const formOpen = formState.mode !== 'closed';
+  const formCompany =
+    formState.mode === 'edit' || formState.mode === 'view' ? formState.company : null;
+
+  // ── Fix 1: Key at call site forces full remount including hooks ──
+
+  const formKey =
+    formState.mode === 'closed'
+      ? 'closed'
+      : formState.mode === 'add'
+        ? 'add'
+        : `${formState.company.companyId}-${formState.mode}`;
 
   // ── Delete / Status ──
 
@@ -89,8 +103,8 @@ export function CompanyList() {
 
   const rowActions: CompanyRowActions = useMemo(
     () => ({
-      onView: (company) => setFormState({ open: true, mode: 'view', company }),
-      onEdit: (company) => setFormState({ open: true, mode: 'edit', company }),
+      onView: (company) => setFormState({ mode: 'view', company }),
+      onEdit: (company) => setFormState({ mode: 'edit', company }),
       onDelete: (company) => setCompanyToDelete(company),
       onToggleStatus: (company) => setCompanyToToggle(company),
     }),
@@ -144,7 +158,7 @@ export function CompanyList() {
 
   const handleSearch = useCallback(
     (value: string) => {
-      setSearch(value || null); // null removes from URL
+      setSearch(value || null);
       table.setPage(1);
     },
     [setSearch, table],
@@ -194,20 +208,22 @@ export function CompanyList() {
             <Button variant="outline" onClick={() => setFilterOpen(true)}>
               Advanced Filter
             </Button>
-            <Button onClick={() => setFormState({ open: true, mode: 'add', company: null })}>
-              Add Company
-            </Button>
+            <Button onClick={() => setFormState({ mode: 'add' })}>Add Company</Button>
           </DataTableActions>
         </DataTableToolbar>
       </DataTable>
 
       <DataTablePagination table={table} />
 
+      {/* Fix 1: key at call site — full remount on company/mode change */}
       <CompanyFormDialog
-        open={formState.open}
-        onOpenChange={(open) => setFormState((prev) => ({ ...prev, open }))}
-        mode={formState.mode}
-        company={formState.company}
+        key={formKey}
+        open={formOpen}
+        onOpenChange={(open) => {
+          if (!open) setFormState({ mode: 'closed' });
+        }}
+        mode={formState.mode === 'closed' ? 'add' : formState.mode}
+        company={formCompany}
         onSuccess={invalidateList}
       />
 

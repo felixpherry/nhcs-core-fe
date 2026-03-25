@@ -27,6 +27,7 @@ import {
   type AreaQueryParams,
 } from '@nhcs/features';
 import type { CompanyFilter } from '@nhcs/api/src/routers/organization-development/company/company.schema';
+import { useValidateCompanyGroupCode } from './hooks/use-validate-company-group-code';
 
 // ── Types ──
 
@@ -160,32 +161,7 @@ export function CompanyFilterDialog({
     enabled: open,
   });
 
-  const utils = trpc.useUtils();
-
-  const validateCompanyGroupCode = useCallback(
-    async (code: string): Promise<CompanyGroupFormValue | null> => {
-      try {
-        const result = await utils.common.companyGroup.list.fetch({
-          page: 1,
-          limit: 2,
-          search: code,
-        });
-
-        const exactMatch = result.data.find((item) => item.companyGroupCode === code);
-
-        if (!exactMatch) return null;
-
-        return {
-          companyGroupId: exactMatch.companyGroupId,
-          companyGroupCode: exactMatch.companyGroupCode ?? '',
-          companyGroupName: exactMatch.companyGroupName ?? '',
-        };
-      } catch {
-        return null;
-      }
-    },
-    [utils],
-  );
+  const validateCompanyGroupCode = useValidateCompanyGroupCode();
 
   // ── Handlers ──
 
