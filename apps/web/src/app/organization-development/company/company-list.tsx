@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState, useEffect } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useQueryState, parseAsString, parseAsInteger } from 'nuqs';
 import { trpc } from '@/lib/trpc';
 import {
@@ -110,33 +110,16 @@ export function CompanyList() {
 
   const columns = useMemo(() => createCompanyColumns(rowActions), [rowActions]);
 
-  // ── Table hook ──
+  // ── Table hook — controlled pagination via URL ──
 
   const table = useDataTable<Company>({
     columns,
     getRowId: (row) => String(row.companyId),
-    defaultPageSize: urlPageSize,
+    page: urlPage,
+    onPageChange: setUrlPage,
+    pageSize: urlPageSize,
+    onPageSizeChange: setUrlPageSize,
   });
-
-  // ── Sync URL → table on mount ──
-
-  useEffect(() => {
-    table.setPage(urlPage);
-  }, []);
-
-  // ── Sync table → URL when table state changes ──
-
-  useEffect(() => {
-    if (table.page !== urlPage) {
-      setUrlPage(table.page);
-    }
-  }, [table.page]);
-
-  useEffect(() => {
-    if (table.pageSize !== urlPageSize) {
-      setUrlPageSize(table.pageSize);
-    }
-  }, [table.pageSize]);
 
   // ── Build query input ──
 
