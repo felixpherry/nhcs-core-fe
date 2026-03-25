@@ -156,25 +156,31 @@ export function CompanyFilterDialog({
   const cgList = trpc.common.companyGroup.list.useQuery(cgQuery);
   const areaList = trpc.common.area.list.useQuery(areaQuery);
 
-  // ── Validate company group code ──
+  const utils = trpc.useUtils();
 
   const validateCompanyGroupCode = useCallback(
     async (code: string): Promise<CompanyGroupFormValue | null> => {
       try {
-        const result = await cgList.refetch();
-        const data = result.data?.data ?? [];
-        const match = data.find((item) => item.companyGroupCode === code);
-        if (!match) return null;
+        const result = await utils.common.companyGroup.list.fetch({
+          page: 1,
+          limit: 2,
+          search: code,
+        });
+
+        const exactMatch = result.data.find((item) => item.companyGroupCode === code);
+
+        if (!exactMatch) return null;
+
         return {
-          companyGroupId: match.companyGroupId,
-          companyGroupCode: match.companyGroupCode ?? '',
-          companyGroupName: match.companyGroupName ?? '',
+          companyGroupId: exactMatch.companyGroupId,
+          companyGroupCode: exactMatch.companyGroupCode ?? '',
+          companyGroupName: exactMatch.companyGroupName ?? '',
         };
       } catch {
         return null;
       }
     },
-    [cgList],
+    [utils],
   );
 
   // ── Handlers ──

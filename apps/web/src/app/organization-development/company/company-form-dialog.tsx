@@ -187,26 +187,46 @@ function companyToFormState(company: Company): CompanyFormState {
 function validate(data: CompanyFormData): Record<string, string> {
   const errors: Record<string, string> = {};
 
+  // Company Code: required | no_space | max:30 | code pattern (alphanumeric + dash/underscore)
   if (!data.companyCode.trim()) {
     errors.companyCode = 'Company Code is required';
+  } else if (/\s/.test(data.companyCode)) {
+    errors.companyCode = 'Company Code must not contain spaces';
+  } else if (data.companyCode.length > 30) {
+    errors.companyCode = 'Company Code must be at most 30 characters';
+  } else if (!/^[a-zA-Z0-9_-]+$/.test(data.companyCode)) {
+    errors.companyCode = 'Company Code must be alphanumeric (dashes and underscores allowed)';
   }
 
+  // Company Name: required | max:80
   if (!data.companyName.trim()) {
     errors.companyName = 'Company Name is required';
+  } else if (data.companyName.length > 80) {
+    errors.companyName = 'Company Name must be at most 80 characters';
   }
 
+  // Company Alias: required | alphanumeric | max:30
   if (!data.companyAlias.trim()) {
     errors.companyAlias = 'Company Alias is required';
   } else if (!/^[a-zA-Z0-9]+$/.test(data.companyAlias)) {
     errors.companyAlias = 'Company Alias must be alphanumeric';
+  } else if (data.companyAlias.length > 30) {
+    errors.companyAlias = 'Company Alias must be at most 30 characters';
   }
 
+  // Company Group: required
+  if (data.companyGroupId === null || data.companyGroupId === 0) {
+    errors.companyGroupId = 'Company Group is required';
+  }
+
+  // Address: required | min:15
   if (!data.address.trim()) {
     errors.address = 'Address is required';
   } else if (data.address.trim().length < 15) {
     errors.address = 'Address must be at least 15 characters';
   }
 
+  // Phone Number: required | numeric | min:10
   if (!data.phoneNumber.trim()) {
     errors.phoneNumber = 'Phone Number is required';
   } else if (!/^\d+$/.test(data.phoneNumber)) {
@@ -333,25 +353,30 @@ export function CompanyFormDialog({
     });
   }, [state.data, saveMutation]);
 
-  // ── Validate company group code ──
-
+  const utils = trpc.useUtils();
   const validateCompanyGroupCode = useCallback(
     async (code: string): Promise<CompanyGroupFormValue | null> => {
       try {
-        const result = await cgList.refetch();
-        const data = result.data?.data ?? [];
-        const match = data.find((item) => item.companyGroupCode === code);
-        if (!match) return null;
+        const result = await utils.common.companyGroup.list.fetch({
+          page: 1,
+          limit: 2,
+          search: code,
+        });
+
+        const exactMatch = result.data.find((item) => item.companyGroupCode === code);
+
+        if (!exactMatch) return null;
+
         return {
-          companyGroupId: match.companyGroupId,
-          companyGroupCode: match.companyGroupCode ?? '',
-          companyGroupName: match.companyGroupName ?? '',
+          companyGroupId: exactMatch.companyGroupId,
+          companyGroupCode: exactMatch.companyGroupCode ?? '',
+          companyGroupName: exactMatch.companyGroupName ?? '',
         };
       } catch {
         return null;
       }
     },
-    [cgList],
+    [utils],
   );
 
   // ── Dialog title ──
@@ -416,7 +441,7 @@ export function CompanyFormDialog({
         </FormField>
 
         {/* ── Company Group (ChooserField) ── */}
-        <FormField label="Company Group">
+        <FormField label="Company Group" required={!isView} error={state.errors.companyGroupId}>
           <CompanyGroupChooser
             value={state.companyGroup}
             onChange={(val) => dispatch({ type: 'SET_COMPANY_GROUP', value: val })}
@@ -426,6 +451,7 @@ export function CompanyFormDialog({
             onQueryChange={setCgQuery}
             validateCode={validateCompanyGroupCode}
             disabled={isView}
+            required
           />
         </FormField>
 
