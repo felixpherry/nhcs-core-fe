@@ -1,11 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useWorkflowActions } from './use-workflow-actions';
-import type { WorkflowAction } from './use-workflow-actions';
+import * as useWorkflowActions from './use-workflow-actions';
 
 // ── Helpers ──
 
-function createAction(overrides: Partial<WorkflowAction> = {}): WorkflowAction {
+function createAction(
+  overrides: Partial<useWorkflowActions.WorkflowAction> = {},
+): useWorkflowActions.WorkflowAction {
   return {
     id: 'test-action',
     label: 'Test Action',
@@ -17,23 +18,25 @@ function createAction(overrides: Partial<WorkflowAction> = {}): WorkflowAction {
 // ── Tests ──
 
 describe('useWorkflowActions', () => {
-  // ────────────────────────────────────────
+  // ════════════════════════════════════════
   // Initial state
-  // ────────────────────────────────────────
+  // ════════════════════════════════════════
 
   describe('initial state', () => {
     it('starts in idle state', () => {
-      const { result } = renderHook(() => useWorkflowActions({ actions: [createAction()] }));
+      const { result } = renderHook(() =>
+        useWorkflowActions.useWorkflowActions({ actions: [createAction()] }),
+      );
 
-      expect(result.current.pipelineState).toEqual({ step: 'idle' });
+      expect(result.current.pipelineState).toEqual({ step: 'idle', actionId: null });
       expect(result.current.isExecuting).toBe(false);
       expect(result.current.activeAction).toBeNull();
     });
   });
 
-  // ────────────────────────────────────────
+  // ════════════════════════════════════════
   // Visible actions
-  // ────────────────────────────────────────
+  // ════════════════════════════════════════
 
   describe('visibleActions', () => {
     it('returns all actions when all visible', () => {
@@ -42,7 +45,7 @@ describe('useWorkflowActions', () => {
         createAction({ id: 'b', label: 'B' }),
       ];
 
-      const { result } = renderHook(() => useWorkflowActions({ actions }));
+      const { result } = renderHook(() => useWorkflowActions.useWorkflowActions({ actions }));
 
       expect(result.current.visibleActions).toHaveLength(2);
     });
@@ -51,10 +54,10 @@ describe('useWorkflowActions', () => {
       const actions = [
         createAction({ id: 'a', label: 'A', visible: true }),
         createAction({ id: 'b', label: 'B', visible: false }),
-        createAction({ id: 'c', label: 'C' }), // undefined = visible
+        createAction({ id: 'c', label: 'C' }),
       ];
 
-      const { result } = renderHook(() => useWorkflowActions({ actions }));
+      const { result } = renderHook(() => useWorkflowActions.useWorkflowActions({ actions }));
 
       expect(result.current.visibleActions).toHaveLength(2);
       expect(result.current.visibleActions.map((a) => a.id)).toEqual(['a', 'c']);
@@ -66,22 +69,22 @@ describe('useWorkflowActions', () => {
         createAction({ id: 'b', visible: false }),
       ];
 
-      const { result } = renderHook(() => useWorkflowActions({ actions }));
+      const { result } = renderHook(() => useWorkflowActions.useWorkflowActions({ actions }));
 
       expect(result.current.visibleActions).toHaveLength(0);
     });
   });
 
-  // ────────────────────────────────────────
+  // ════════════════════════════════════════
   // Direct execution (no confirm, no input)
-  // ────────────────────────────────────────
+  // ════════════════════════════════════════
 
   describe('direct execution', () => {
     it('executes action immediately when no confirm or input', async () => {
       const onExecute = vi.fn().mockResolvedValue(undefined);
       const actions = [createAction({ id: 'save', onExecute })];
 
-      const { result } = renderHook(() => useWorkflowActions({ actions }));
+      const { result } = renderHook(() => useWorkflowActions.useWorkflowActions({ actions }));
 
       await act(async () => {
         result.current.trigger('save');
@@ -95,20 +98,22 @@ describe('useWorkflowActions', () => {
       const onExecute = vi.fn().mockResolvedValue(undefined);
       const actions = [createAction({ id: 'save', onExecute })];
 
-      const { result } = renderHook(() => useWorkflowActions({ actions }));
+      const { result } = renderHook(() => useWorkflowActions.useWorkflowActions({ actions }));
 
       await act(async () => {
         result.current.trigger('save');
       });
 
-      expect(result.current.pipelineState).toEqual({ step: 'idle' });
+      expect(result.current.pipelineState).toEqual({ step: 'idle', actionId: null });
     });
 
     it('calls onActionComplete after successful execution', async () => {
       const onActionComplete = vi.fn();
       const actions = [createAction({ id: 'save' })];
 
-      const { result } = renderHook(() => useWorkflowActions({ actions, onActionComplete }));
+      const { result } = renderHook(() =>
+        useWorkflowActions.useWorkflowActions({ actions, onActionComplete }),
+      );
 
       await act(async () => {
         result.current.trigger('save');
@@ -122,7 +127,9 @@ describe('useWorkflowActions', () => {
       const onActionError = vi.fn();
       const actions = [createAction({ id: 'save', onExecute: vi.fn().mockRejectedValue(error) })];
 
-      const { result } = renderHook(() => useWorkflowActions({ actions, onActionError }));
+      const { result } = renderHook(() =>
+        useWorkflowActions.useWorkflowActions({ actions, onActionError }),
+      );
 
       await act(async () => {
         result.current.trigger('save');
@@ -136,43 +143,47 @@ describe('useWorkflowActions', () => {
         createAction({ id: 'save', onExecute: vi.fn().mockRejectedValue(new Error()) }),
       ];
 
-      const { result } = renderHook(() => useWorkflowActions({ actions, onActionError: vi.fn() }));
+      const { result } = renderHook(() =>
+        useWorkflowActions.useWorkflowActions({ actions, onActionError: vi.fn() }),
+      );
 
       await act(async () => {
         result.current.trigger('save');
       });
 
-      expect(result.current.pipelineState).toEqual({ step: 'idle' });
+      expect(result.current.pipelineState).toEqual({ step: 'idle', actionId: null });
     });
 
     it('does nothing when triggering non-existent action', async () => {
-      const { result } = renderHook(() => useWorkflowActions({ actions: [createAction()] }));
+      const { result } = renderHook(() =>
+        useWorkflowActions.useWorkflowActions({ actions: [createAction()] }),
+      );
 
       await act(async () => {
         result.current.trigger('non-existent');
       });
 
-      expect(result.current.pipelineState).toEqual({ step: 'idle' });
+      expect(result.current.pipelineState).toEqual({ step: 'idle', actionId: null });
     });
 
     it('does nothing when triggering disabled action', async () => {
       const onExecute = vi.fn();
       const actions = [createAction({ id: 'save', disabled: true, onExecute })];
 
-      const { result } = renderHook(() => useWorkflowActions({ actions }));
+      const { result } = renderHook(() => useWorkflowActions.useWorkflowActions({ actions }));
 
       await act(async () => {
         result.current.trigger('save');
       });
 
       expect(onExecute).not.toHaveBeenCalled();
-      expect(result.current.pipelineState).toEqual({ step: 'idle' });
+      expect(result.current.pipelineState).toEqual({ step: 'idle', actionId: null });
     });
   });
 
-  // ────────────────────────────────────────
+  // ════════════════════════════════════════
   // Confirm → execute pipeline
-  // ────────────────────────────────────────
+  // ════════════════════════════════════════
 
   describe('confirm → execute', () => {
     it('enters confirm state when action has confirm step', () => {
@@ -183,7 +194,7 @@ describe('useWorkflowActions', () => {
         }),
       ];
 
-      const { result } = renderHook(() => useWorkflowActions({ actions }));
+      const { result } = renderHook(() => useWorkflowActions.useWorkflowActions({ actions }));
 
       act(() => result.current.trigger('delete'));
 
@@ -204,7 +215,7 @@ describe('useWorkflowActions', () => {
         }),
       ];
 
-      const { result } = renderHook(() => useWorkflowActions({ actions }));
+      const { result } = renderHook(() => useWorkflowActions.useWorkflowActions({ actions }));
 
       act(() => result.current.trigger('delete'));
       expect(result.current.pipelineState.step).toBe('confirm');
@@ -214,7 +225,7 @@ describe('useWorkflowActions', () => {
       });
 
       expect(onExecute).toHaveBeenCalledTimes(1);
-      expect(result.current.pipelineState).toEqual({ step: 'idle' });
+      expect(result.current.pipelineState).toEqual({ step: 'idle', actionId: null });
     });
 
     it('returns to idle on cancelStep during confirm', () => {
@@ -227,33 +238,30 @@ describe('useWorkflowActions', () => {
         }),
       ];
 
-      const { result } = renderHook(() => useWorkflowActions({ actions }));
+      const { result } = renderHook(() => useWorkflowActions.useWorkflowActions({ actions }));
 
       act(() => result.current.trigger('delete'));
       act(() => result.current.cancelStep());
 
-      expect(result.current.pipelineState).toEqual({ step: 'idle' });
+      expect(result.current.pipelineState).toEqual({ step: 'idle', actionId: null });
       expect(onExecute).not.toHaveBeenCalled();
     });
   });
 
-  // ────────────────────────────────────────
+  // ════════════════════════════════════════
   // Input → execute pipeline
-  // ────────────────────────────────────────
+  // ════════════════════════════════════════
 
   describe('input → execute', () => {
     it('enters input state when action has input step (no confirm)', () => {
       const actions = [
         createAction({
           id: 'cancel-request',
-          input: {
-            title: 'Cancel Reason',
-            fields: [],
-          },
+          input: { title: 'Cancel Reason', fields: [] },
         }),
       ];
 
-      const { result } = renderHook(() => useWorkflowActions({ actions }));
+      const { result } = renderHook(() => useWorkflowActions.useWorkflowActions({ actions }));
 
       act(() => result.current.trigger('cancel-request'));
 
@@ -273,7 +281,7 @@ describe('useWorkflowActions', () => {
         }),
       ];
 
-      const { result } = renderHook(() => useWorkflowActions({ actions }));
+      const { result } = renderHook(() => useWorkflowActions.useWorkflowActions({ actions }));
 
       act(() => result.current.trigger('cancel-request'));
 
@@ -282,7 +290,7 @@ describe('useWorkflowActions', () => {
       });
 
       expect(onExecute).toHaveBeenCalledWith({ reason: 'No longer needed' });
-      expect(result.current.pipelineState).toEqual({ step: 'idle' });
+      expect(result.current.pipelineState).toEqual({ step: 'idle', actionId: null });
     });
 
     it('returns to idle on cancelStep during input', () => {
@@ -295,19 +303,19 @@ describe('useWorkflowActions', () => {
         }),
       ];
 
-      const { result } = renderHook(() => useWorkflowActions({ actions }));
+      const { result } = renderHook(() => useWorkflowActions.useWorkflowActions({ actions }));
 
       act(() => result.current.trigger('cancel-request'));
       act(() => result.current.cancelStep());
 
-      expect(result.current.pipelineState).toEqual({ step: 'idle' });
+      expect(result.current.pipelineState).toEqual({ step: 'idle', actionId: null });
       expect(onExecute).not.toHaveBeenCalled();
     });
   });
 
-  // ────────────────────────────────────────
+  // ════════════════════════════════════════
   // Confirm → input → execute pipeline
-  // ────────────────────────────────────────
+  // ════════════════════════════════════════
 
   describe('confirm → input → execute', () => {
     it('goes through full pipeline: confirm → input → execute', async () => {
@@ -329,7 +337,7 @@ describe('useWorkflowActions', () => {
         }),
       ];
 
-      const { result } = renderHook(() => useWorkflowActions({ actions }));
+      const { result } = renderHook(() => useWorkflowActions.useWorkflowActions({ actions }));
 
       // Step 1: trigger → confirm
       act(() => result.current.trigger('cancel-request'));
@@ -351,7 +359,7 @@ describe('useWorkflowActions', () => {
       });
 
       expect(onExecute).toHaveBeenCalledWith({ reason: 'Changed plans' });
-      expect(result.current.pipelineState).toEqual({ step: 'idle' });
+      expect(result.current.pipelineState).toEqual({ step: 'idle', actionId: null });
     });
 
     it('can cancel at confirm step in full pipeline', () => {
@@ -365,12 +373,12 @@ describe('useWorkflowActions', () => {
         }),
       ];
 
-      const { result } = renderHook(() => useWorkflowActions({ actions }));
+      const { result } = renderHook(() => useWorkflowActions.useWorkflowActions({ actions }));
 
       act(() => result.current.trigger('cancel-request'));
       act(() => result.current.cancelStep());
 
-      expect(result.current.pipelineState).toEqual({ step: 'idle' });
+      expect(result.current.pipelineState).toEqual({ step: 'idle', actionId: null });
       expect(onExecute).not.toHaveBeenCalled();
     });
 
@@ -385,7 +393,7 @@ describe('useWorkflowActions', () => {
         }),
       ];
 
-      const { result } = renderHook(() => useWorkflowActions({ actions }));
+      const { result } = renderHook(() => useWorkflowActions.useWorkflowActions({ actions }));
 
       act(() => result.current.trigger('cancel-request'));
       act(() => result.current.confirmStep());
@@ -393,18 +401,20 @@ describe('useWorkflowActions', () => {
 
       act(() => result.current.cancelStep());
 
-      expect(result.current.pipelineState).toEqual({ step: 'idle' });
+      expect(result.current.pipelineState).toEqual({ step: 'idle', actionId: null });
       expect(onExecute).not.toHaveBeenCalled();
     });
   });
 
-  // ────────────────────────────────────────
+  // ════════════════════════════════════════
   // Active action
-  // ────────────────────────────────────────
+  // ════════════════════════════════════════
 
   describe('activeAction', () => {
     it('is null when idle', () => {
-      const { result } = renderHook(() => useWorkflowActions({ actions: [createAction()] }));
+      const { result } = renderHook(() =>
+        useWorkflowActions.useWorkflowActions({ actions: [createAction()] }),
+      );
 
       expect(result.current.activeAction).toBeNull();
     });
@@ -418,7 +428,7 @@ describe('useWorkflowActions', () => {
         }),
       ];
 
-      const { result } = renderHook(() => useWorkflowActions({ actions }));
+      const { result } = renderHook(() => useWorkflowActions.useWorkflowActions({ actions }));
 
       act(() => result.current.trigger('approve'));
 
@@ -436,7 +446,7 @@ describe('useWorkflowActions', () => {
         }),
       ];
 
-      const { result } = renderHook(() => useWorkflowActions({ actions }));
+      const { result } = renderHook(() => useWorkflowActions.useWorkflowActions({ actions }));
 
       act(() => result.current.trigger('cancel'));
 
@@ -444,9 +454,9 @@ describe('useWorkflowActions', () => {
     });
   });
 
-  // ────────────────────────────────────────
+  // ════════════════════════════════════════
   // isExecuting
-  // ────────────────────────────────────────
+  // ════════════════════════════════════════
 
   describe('isExecuting', () => {
     it('is true during execution', async () => {
@@ -460,7 +470,7 @@ describe('useWorkflowActions', () => {
 
       const actions = [createAction({ id: 'save', onExecute })];
 
-      const { result } = renderHook(() => useWorkflowActions({ actions }));
+      const { result } = renderHook(() => useWorkflowActions.useWorkflowActions({ actions }));
 
       act(() => {
         result.current.trigger('save');
@@ -480,33 +490,39 @@ describe('useWorkflowActions', () => {
     });
   });
 
-  // ────────────────────────────────────────
+  // ════════════════════════════════════════
   // Edge cases: no-ops on wrong state
-  // ────────────────────────────────────────
+  // ════════════════════════════════════════
 
   describe('edge cases', () => {
     it('confirmStep does nothing when not in confirm state', () => {
-      const { result } = renderHook(() => useWorkflowActions({ actions: [createAction()] }));
+      const { result } = renderHook(() =>
+        useWorkflowActions.useWorkflowActions({ actions: [createAction()] }),
+      );
 
       act(() => result.current.confirmStep());
 
-      expect(result.current.pipelineState).toEqual({ step: 'idle' });
+      expect(result.current.pipelineState).toEqual({ step: 'idle', actionId: null });
     });
 
     it('submitInput does nothing when not in input state', () => {
-      const { result } = renderHook(() => useWorkflowActions({ actions: [createAction()] }));
+      const { result } = renderHook(() =>
+        useWorkflowActions.useWorkflowActions({ actions: [createAction()] }),
+      );
 
       act(() => result.current.submitInput({ reason: 'test' }));
 
-      expect(result.current.pipelineState).toEqual({ step: 'idle' });
+      expect(result.current.pipelineState).toEqual({ step: 'idle', actionId: null });
     });
 
     it('synchronous onExecute works correctly', async () => {
-      const onExecute = vi.fn(); // No return value — synchronous
+      const onExecute = vi.fn();
       const onActionComplete = vi.fn();
       const actions = [createAction({ id: 'close', onExecute })];
 
-      const { result } = renderHook(() => useWorkflowActions({ actions, onActionComplete }));
+      const { result } = renderHook(() =>
+        useWorkflowActions.useWorkflowActions({ actions, onActionComplete }),
+      );
 
       await act(async () => {
         result.current.trigger('close');
@@ -514,6 +530,286 @@ describe('useWorkflowActions', () => {
 
       expect(onExecute).toHaveBeenCalled();
       expect(onActionComplete).toHaveBeenCalledWith('close');
+    });
+  });
+
+  // ════════════════════════════════════════
+  // State reducer
+  // ════════════════════════════════════════
+
+  describe('stateReducer', () => {
+    it('receives current state and action with proposed changes', () => {
+      const stateReducer = vi.fn(
+        (
+          _state: useWorkflowActions.PipelineState,
+          actionAndChanges: useWorkflowActions.PipelineAction & {
+            changes: useWorkflowActions.PipelineState;
+          },
+        ) => actionAndChanges.changes,
+      );
+
+      const actions = [
+        createAction({
+          id: 'delete',
+          confirm: { title: 'Sure?' },
+        }),
+      ];
+
+      const { result } = renderHook(() =>
+        useWorkflowActions.useWorkflowActions({ actions, stateReducer }),
+      );
+
+      act(() => result.current.trigger('delete'));
+
+      expect(stateReducer).toHaveBeenCalledTimes(1);
+      const [state, actionAndChanges] = stateReducer.mock.calls[0]!;
+
+      expect(state).toEqual({ step: 'idle', actionId: null });
+      expect(actionAndChanges.changes).toEqual({ step: 'confirm', actionId: 'delete' });
+      expect(actionAndChanges.type).toBe(useWorkflowActions.WorkflowTransitions.Trigger);
+    });
+
+    it('can skip confirm step', () => {
+      const stateReducer = (
+        _state: useWorkflowActions.PipelineState,
+        actionAndChanges: useWorkflowActions.PipelineAction & {
+          changes: useWorkflowActions.PipelineState;
+        },
+      ) => {
+        const { type, changes } = actionAndChanges;
+        // Skip confirm → go straight to input or execute
+        if (type === useWorkflowActions.WorkflowTransitions.Trigger && changes.step === 'confirm') {
+          return { ...changes, step: 'input' as const };
+        }
+        return changes;
+      };
+
+      const actions = [
+        createAction({
+          id: 'delete',
+          confirm: { title: 'Sure?' },
+          input: { title: 'Reason', fields: [] },
+        }),
+      ];
+
+      const { result } = renderHook(() =>
+        useWorkflowActions.useWorkflowActions({ actions, stateReducer }),
+      );
+
+      act(() => result.current.trigger('delete'));
+
+      // Should skip confirm and go straight to input
+      expect(result.current.pipelineState).toEqual({
+        step: 'input',
+        actionId: 'delete',
+      });
+    });
+
+    it('can prevent cancel', () => {
+      const stateReducer = (
+        state: useWorkflowActions.PipelineState,
+        actionAndChanges: useWorkflowActions.PipelineAction & {
+          changes: useWorkflowActions.PipelineState;
+        },
+      ) => {
+        const { type, changes } = actionAndChanges;
+        // Block cancel during input step
+        if (type === useWorkflowActions.WorkflowTransitions.Cancel && state.step === 'input') {
+          return state; // stay where we are
+        }
+        return changes;
+      };
+
+      const actions = [
+        createAction({
+          id: 'cancel-request',
+          input: { title: 'Reason', fields: [] },
+        }),
+      ];
+
+      const { result } = renderHook(() =>
+        useWorkflowActions.useWorkflowActions({ actions, stateReducer }),
+      );
+
+      act(() => result.current.trigger('cancel-request'));
+      expect(result.current.pipelineState.step).toBe('input');
+
+      act(() => result.current.cancelStep());
+
+      // Should still be in input — cancel was blocked
+      expect(result.current.pipelineState).toEqual({
+        step: 'input',
+        actionId: 'cancel-request',
+      });
+    });
+
+    it('does not intercept when stateReducer is not provided', () => {
+      const actions = [
+        createAction({
+          id: 'delete',
+          confirm: { title: 'Sure?' },
+        }),
+      ];
+
+      const { result } = renderHook(() => useWorkflowActions.useWorkflowActions({ actions }));
+
+      act(() => result.current.trigger('delete'));
+
+      expect(result.current.pipelineState).toEqual({
+        step: 'confirm',
+        actionId: 'delete',
+      });
+    });
+  });
+
+  // ════════════════════════════════════════
+  // onPipelineChange callback
+  // ════════════════════════════════════════
+
+  describe('onPipelineChange', () => {
+    it('is called when pipeline state changes', () => {
+      const onPipelineChange = vi.fn();
+      const actions = [
+        createAction({
+          id: 'delete',
+          confirm: { title: 'Sure?' },
+        }),
+      ];
+
+      const { result } = renderHook(() =>
+        useWorkflowActions.useWorkflowActions({ actions, onPipelineChange }),
+      );
+
+      act(() => result.current.trigger('delete'));
+
+      expect(onPipelineChange).toHaveBeenCalledWith({
+        state: { step: 'confirm', actionId: 'delete' },
+        type: useWorkflowActions.WorkflowTransitions.Trigger,
+      });
+    });
+
+    it('is called on cancel', () => {
+      const onPipelineChange = vi.fn();
+      const actions = [
+        createAction({
+          id: 'delete',
+          confirm: { title: 'Sure?' },
+        }),
+      ];
+
+      const { result } = renderHook(() =>
+        useWorkflowActions.useWorkflowActions({ actions, onPipelineChange }),
+      );
+
+      act(() => result.current.trigger('delete'));
+      onPipelineChange.mockClear();
+
+      act(() => result.current.cancelStep());
+
+      expect(onPipelineChange).toHaveBeenCalledWith({
+        state: { step: 'idle', actionId: null },
+        type: useWorkflowActions.WorkflowTransitions.Cancel,
+      });
+    });
+
+    it('fires executing callback when onExecute is slow', async () => {
+      const onPipelineChange = vi.fn();
+
+      let resolveExecute: () => void;
+      const onExecute = vi.fn().mockImplementation(
+        () =>
+          new Promise<void>((r) => {
+            resolveExecute = r;
+          }),
+      );
+
+      const actions = [
+        createAction({
+          id: 'cancel-request',
+          input: { title: 'Reason', fields: [] },
+          onExecute,
+        }),
+      ];
+
+      const { result } = renderHook(() =>
+        useWorkflowActions.useWorkflowActions({ actions, onPipelineChange }),
+      );
+
+      act(() => result.current.trigger('cancel-request'));
+      onPipelineChange.mockClear();
+
+      // submitInput dispatches ADVANCE_TO_EXECUTE, then awaits onExecute
+      act(() => {
+        result.current.submitInput({ reason: 'done' });
+      });
+
+      // onExecute hasn't resolved yet — we should see executing state
+      expect(onPipelineChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          state: { step: 'executing', actionId: 'cancel-request' },
+          type: useWorkflowActions.WorkflowTransitions.AdvanceToExecute,
+        }),
+      );
+
+      // Now resolve → EXECUTION_COMPLETE fires
+      await act(async () => {
+        resolveExecute!();
+      });
+
+      expect(onPipelineChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          state: { step: 'idle', actionId: null },
+          type: useWorkflowActions.WorkflowTransitions.ExecutionComplete,
+        }),
+      );
+    });
+
+    it('is not called on initial mount', () => {
+      const onPipelineChange = vi.fn();
+
+      renderHook(() =>
+        useWorkflowActions.useWorkflowActions({ actions: [createAction()], onPipelineChange }),
+      );
+
+      expect(onPipelineChange).not.toHaveBeenCalled();
+    });
+
+    it('sees state after stateReducer modifications', () => {
+      const onPipelineChange = vi.fn();
+
+      // stateReducer skips confirm → goes to input
+      const stateReducer = (
+        _state: useWorkflowActions.PipelineState,
+        actionAndChanges: useWorkflowActions.PipelineAction & {
+          changes: useWorkflowActions.PipelineState;
+        },
+      ) => {
+        const { type, changes } = actionAndChanges;
+        if (type === useWorkflowActions.WorkflowTransitions.Trigger && changes.step === 'confirm') {
+          return { ...changes, step: 'input' as const };
+        }
+        return changes;
+      };
+
+      const actions = [
+        createAction({
+          id: 'delete',
+          confirm: { title: 'Sure?' },
+          input: { title: 'Reason', fields: [] },
+        }),
+      ];
+
+      const { result } = renderHook(() =>
+        useWorkflowActions.useWorkflowActions({ actions, stateReducer, onPipelineChange }),
+      );
+
+      act(() => result.current.trigger('delete'));
+
+      // Callback should see the stateReducer-modified result (input, not confirm)
+      expect(onPipelineChange).toHaveBeenCalledWith({
+        state: { step: 'input', actionId: 'delete' },
+        type: useWorkflowActions.WorkflowTransitions.Trigger,
+      });
     });
   });
 });

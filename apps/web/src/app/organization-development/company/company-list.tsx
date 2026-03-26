@@ -210,9 +210,8 @@ export function CompanyList() {
             <Button onClick={() => setFormState({ mode: 'create' })}>Add Company</Button>
           </DataTableActions>
         </DataTableToolbar>
+        <DataTablePagination />
       </DataTable>
-
-      <DataTablePagination table={table} />
 
       <CompanyFormDialog
         key={formKey}
