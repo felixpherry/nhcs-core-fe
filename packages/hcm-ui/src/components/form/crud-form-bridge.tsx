@@ -10,6 +10,7 @@ export interface CrudFormBridgeProps<TForm extends Record<string, unknown>> {
   defaultValues: TForm;
   onSubmit: (values: TForm) => Promise<void> | void;
   isSubmitting: boolean;
+  formId?: string;
   validators?: {
     onBlur?: StandardSchemaV1<TForm>;
     onSubmit?: StandardSchemaV1<TForm>;
@@ -22,6 +23,7 @@ export function CrudFormBridge<TForm extends Record<string, unknown>>({
   crud,
   defaultValues,
   onSubmit,
+  formId = 'crud-form',
   validators,
   children,
 }: CrudFormBridgeProps<TForm>) {
@@ -37,6 +39,7 @@ export function CrudFormBridge<TForm extends Record<string, unknown>>({
 
   return (
     <form
+      id={formId}
       onSubmit={(e) => {
         e.preventDefault();
         e.stopPropagation();

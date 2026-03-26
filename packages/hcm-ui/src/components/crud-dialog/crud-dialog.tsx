@@ -15,9 +15,9 @@ import type { FormMode, UseCrudDialogReturn } from '../../hooks/use-crud-dialog'
 
 export interface CrudDialogProps {
   crud: UseCrudDialogReturn<unknown>;
-  onSubmit: () => void;
   isSubmitting?: boolean;
   isDirty?: boolean;
+  formId?: string;
   entityName?: string;
   title?: string;
   description?: string;
@@ -26,8 +26,8 @@ export interface CrudDialogProps {
     mode: FormMode;
     isDirty: boolean;
     isSubmitting: boolean;
+    formId: string;
     onClose: () => void;
-    onSubmit: () => void;
   }) => ReactNode;
   children: ReactNode;
 }
@@ -59,9 +59,9 @@ function getSubmitLabel(mode: FormMode): string {
 export function CrudDialog(props: CrudDialogProps) {
   const {
     crud,
-    onSubmit,
     isSubmitting = false,
     isDirty = false,
+    formId = 'crud-form',
     entityName,
     title,
     description,
@@ -82,7 +82,7 @@ export function CrudDialog(props: CrudDialogProps) {
         <Button variant="outline" onClick={crud.requestClose} disabled={isSubmitting}>
           Cancel
         </Button>
-        <Button onClick={onSubmit} disabled={isSubmitting || crud.isLoading}>
+        <Button type="submit" form={formId} disabled={isSubmitting || crud.isLoading}>
           {isSubmitting ? 'Saving...' : getSubmitLabel(crud.mode)}
         </Button>
       </DialogFooter>
@@ -112,8 +112,8 @@ export function CrudDialog(props: CrudDialogProps) {
                 mode: crud.mode,
                 isDirty,
                 isSubmitting,
+                formId,
                 onClose: crud.requestClose,
-                onSubmit,
               })
             : defaultFooter}
         </DialogContent>

@@ -1,13 +1,13 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useQueryState, parseAsString, parseAsInteger } from 'nuqs';
 import { trpc } from '@/lib/trpc';
 import {
+  useCrudDialog,
   useDataTable,
-  useRemoteTableQuery,
-  buildTableInput,
   DataTable,
+  DataTableContent,
   DataTableToolbar,
   DataTableSearch,
   DataTableActions,
@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@nhcs/hcm-ui';
-import { createCompanyColumns, type CompanyRowActions } from './columns';
+import { createCompanyColumns } from './columns';
 import { CompanyFormDialog } from './company-form-dialog';
 import { CompanyFilterDialog } from './company-filter-dialog';
 import type {
@@ -30,87 +30,58 @@ import type {
 } from '@nhcs/api/src/routers/organization-development/company/company.schema';
 import { toast } from 'sonner';
 
-// ── Form state discriminated union ──
-
-type FormState =
-  | { mode: 'closed' }
-  | { mode: 'create' }
-  | { mode: 'edit'; company: Company }
-  | { mode: 'view'; company: Company };
-
 export function CompanyList() {
-  // ── URL state ──
-
   const [search, setSearch] = useQueryState('search', parseAsString.withDefault(''));
   const [statusFilter, setStatusFilter] = useQueryState('status', parseAsString.withDefault('T'));
   const [urlPage, setUrlPage] = useQueryState('page', parseAsInteger.withDefault(1));
   const [urlPageSize, setUrlPageSize] = useQueryState('pageSize', parseAsInteger.withDefault(10));
 
-  // ── Non-URL state ──
-
   const [filterOpen, setFilterOpen] = useState(false);
   const [advancedFilter, setAdvancedFilter] = useState<CompanyFilter | null>(null);
-  const utils = trpc.useUtils();
-
-  // ── Form state ──
-
-  const [formState, setFormState] = useState<FormState>({ mode: 'closed' });
-
-  const formOpen = formState.mode !== 'closed';
-  const formCompany =
-    formState.mode === 'edit' || formState.mode === 'view' ? formState.company : null;
-  const formKey =
-    formState.mode === 'closed'
-      ? 'closed'
-      : formState.mode === 'create'
-        ? 'create'
-        : `${formState.company.companyId}-${formState.mode}`;
-
-  // ── Delete / Status ──
-
   const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
   const [companyToToggle, setCompanyToToggle] = useState<Company | null>(null);
+  const utils = trpc.useUtils();
 
-  // ── Mutations ──
+  const crud = useCrudDialog<Company>({
+    onIsOpenChange({ isOpen }) {
+      if (!isOpen) utils.organizationDevelopment.company.list.invalidate();
+    },
+  });
 
   const deleteMutation = trpc.organizationDevelopment.company.remove.useMutation({
     onSuccess: () => {
       setCompanyToDelete(null);
-      invalidateList();
+      utils.organizationDevelopment.company.list.invalidate();
       toast.success('Company deleted successfully');
     },
-    onError: (error) => {
-      toast.error(error.message || 'Failed to delete company');
-    },
+    onError: (error) => toast.error(error.message || 'Failed to delete company'),
   });
 
   const statusMutation = trpc.organizationDevelopment.company.changeStatus.useMutation({
     onSuccess: () => {
       setCompanyToToggle(null);
-      invalidateList();
+      utils.organizationDevelopment.company.list.invalidate();
     },
-    onError: (error) => {
-      toast.error(error.message || 'Failed to change status');
-    },
+    onError: (error) => toast.error(error.message || 'Failed to change status'),
   });
 
-  // ── Row actions ──
+  const columns = createCompanyColumns({
+    onView: (company) => crud.openView(String(company.companyId), company),
+    onEdit: (company) => crud.openEdit(String(company.companyId), company),
+    onDelete: (company) => setCompanyToDelete(company),
+    onToggleStatus: (company) => setCompanyToToggle(company),
+  });
 
-  const rowActions: CompanyRowActions = useMemo(
-    () => ({
-      onView: (company) => setFormState({ mode: 'view', company }),
-      onEdit: (company) => setFormState({ mode: 'edit', company }),
-      onDelete: (company) => setCompanyToDelete(company),
-      onToggleStatus: (company) => setCompanyToToggle(company),
-    }),
-    [],
-  );
-
-  // ── Columns ──
-
-  const columns = useMemo(() => createCompanyColumns(rowActions), [rowActions]);
-
-  // ── Table hook — controlled pagination via URL ──
+  const query = trpc.organizationDevelopment.company.list.useQuery({
+    page: urlPage,
+    limit: urlPageSize,
+    orderBys: [],
+    // ...{
+    //   companyName: search || null,
+    //   isActive: statusFilter === 'all' ? null : statusFilter,
+    //   ...(advancedFilter ?? {}),
+    // },
+  });
 
   const table = useDataTable<Company>({
     columns,
@@ -119,64 +90,16 @@ export function CompanyList() {
     onPageChange: setUrlPage,
     pageSize: urlPageSize,
     onPageSizeChange: setUrlPageSize,
+    data: (query.data?.data as Company[]) ?? [],
+    totalCount: (query.data?.count as number) ?? 0,
+    isLoading: query.isLoading,
+    isFetching: query.isFetching,
   });
 
-  // ── Build query input ──
-
-  const input = buildTableInput({
-    ...table.queryState,
-    filters: {
-      companyName: search || null,
-      isActive: statusFilter === 'all' ? null : statusFilter,
-      ...(advancedFilter ?? {}),
-    },
-  });
-
-  // ── tRPC query ──
-
-  const query = trpc.organizationDevelopment.company.list.useQuery(input);
-
-  // ── Wire query → table ──
-
-  useRemoteTableQuery({
-    table,
-    queryResult: query,
-    extractData: (res) => ({
-      data: (res?.data as Company[]) ?? [],
-      totalCount: (res?.count as number) ?? 0,
-    }),
-  });
-
-  // ── Invalidate list ──
-
-  const invalidateList = useCallback(() => {
-    utils.organizationDevelopment.company.list.invalidate();
-  }, [utils]);
-
-  // ── Search handler ──
-
-  const handleSearch = useCallback(
-    (value: string) => {
-      setSearch(value || null);
-      table.setPage(1);
-    },
-    [setSearch, table],
-  );
-
-  // ── Advanced filter handlers ──
-
-  const handleApplyFilter = useCallback(
-    (filter: CompanyFilter) => {
-      setAdvancedFilter(filter);
-      table.setPage(1);
-    },
-    [table],
-  );
-
-  const handleResetFilter = useCallback(() => {
-    setAdvancedFilter(null);
+  const handleSearch = (value: string) => {
+    setSearch(value || null);
     table.setPage(1);
-  }, [table]);
+  };
 
   return (
     <div className="space-y-4 p-6">
@@ -207,35 +130,31 @@ export function CompanyList() {
             <Button variant="outline" onClick={() => setFilterOpen(true)}>
               Advanced Filter
             </Button>
-            <Button onClick={() => setFormState({ mode: 'create' })}>Add Company</Button>
+            <Button onClick={crud.openCreate}>Add Company</Button>
           </DataTableActions>
         </DataTableToolbar>
+        <DataTableContent />
         <DataTablePagination />
       </DataTable>
 
-      <CompanyFormDialog
-        key={formKey}
-        open={formOpen}
-        onOpenChange={(open) => {
-          if (!open) setFormState({ mode: 'closed' });
-        }}
-        mode={formState.mode === 'closed' ? 'create' : formState.mode}
-        company={formCompany}
-        onSuccess={invalidateList}
-      />
+      <CompanyFormDialog crud={crud} />
 
       <CompanyFilterDialog
         open={filterOpen}
         onOpenChange={setFilterOpen}
-        onApply={handleApplyFilter}
-        onReset={handleResetFilter}
+        onApply={(filter) => {
+          setAdvancedFilter(filter);
+          table.setPage(1);
+        }}
+        onReset={() => {
+          setAdvancedFilter(null);
+          table.setPage(1);
+        }}
       />
 
       <ConfirmDialog
         open={!!companyToDelete}
-        onOpenChange={(open) => {
-          if (!open) setCompanyToDelete(null);
-        }}
+        onOpenChange={(open) => !open && setCompanyToDelete(null)}
         title="Delete Company"
         description={
           companyToDelete
@@ -246,17 +165,13 @@ export function CompanyList() {
         confirmLabel="Delete"
         loading={deleteMutation.isPending}
         onConfirm={() => {
-          if (companyToDelete) {
-            deleteMutation.mutate({ id: companyToDelete.companyId });
-          }
+          if (companyToDelete) deleteMutation.mutate({ id: companyToDelete.companyId });
         }}
       />
 
       <ConfirmDialog
         open={!!companyToToggle}
-        onOpenChange={(open) => {
-          if (!open) setCompanyToToggle(null);
-        }}
+        onOpenChange={(open) => !open && setCompanyToToggle(null)}
         title="Change Status"
         description={
           companyToToggle
@@ -272,11 +187,7 @@ export function CompanyList() {
             const actionLabel = newStatus === 'F' ? 'deactivated' : 'activated';
             statusMutation.mutate(
               { id: companyToToggle.companyId, status: newStatus },
-              {
-                onSuccess: () => {
-                  toast.success(`Company ${actionLabel} successfully`);
-                },
-              },
+              { onSuccess: () => toast.success(`Company ${actionLabel} successfully`) },
             );
           }
         }}
