@@ -1,23 +1,23 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useFilter } from './use-filter';
 
 interface TestFilter extends Record<string, unknown> {
+  status: string;
   search: string;
-  status: string | null;
-  groupId: number | null;
   tags: string[];
 }
 
 const DEFAULTS: TestFilter = {
+  status: '',
   search: '',
-  status: null,
-  groupId: null,
   tags: [],
 };
 
 describe('useFilter', () => {
-  // ── Initial state ──
+  // ══════════════════════════════════════════════════════════════
+  // Initial state
+  // ══════════════════════════════════════════════════════════════
 
   describe('initial state', () => {
     it('starts with default values for both draft and applied', () => {
@@ -25,245 +25,371 @@ describe('useFilter', () => {
 
       expect(result.current.draft).toEqual(DEFAULTS);
       expect(result.current.applied).toEqual(DEFAULTS);
+      expect(result.current.isDirty).toBe(false);
       expect(result.current.activeCount).toBe(0);
       expect(result.current.hasActiveFilters).toBe(false);
-      expect(result.current.isDirty).toBe(false);
     });
   });
 
-  // ── Draft operations ──
+  // ══════════════════════════════════════════════════════════════
+  // Draft operations
+  // ══════════════════════════════════════════════════════════════
 
   describe('draft operations', () => {
-    it('setDraftFieldValue updates a single field', () => {
+    it('setDraftFieldValue updates a single draft field', () => {
       const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS }));
 
-      act(() => result.current.setDraftFieldValue('search', 'acme'));
-      expect(result.current.draft.search).toBe('acme');
-      // Applied unchanged
-      expect(result.current.applied.search).toBe('');
+      act(() => result.current.setDraftFieldValue('status', 'active'));
+
+      expect(result.current.draft.status).toBe('active');
+      expect(result.current.applied.status).toBe(''); // applied unchanged
     });
 
     it('setDraft replaces entire draft', () => {
       const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS }));
 
-      act(() =>
-        result.current.setDraft({
-          search: 'test',
-          status: 'T',
-          groupId: 5,
-          tags: ['a'],
-        }),
-      );
+      act(() => result.current.setDraft({ status: 'active', search: 'hello', tags: ['a'] }));
 
-      expect(result.current.draft.search).toBe('test');
-      expect(result.current.draft.status).toBe('T');
-      expect(result.current.draft.groupId).toBe(5);
-      expect(result.current.draft.tags).toEqual(['a']);
-      // Applied still defaults
+      expect(result.current.draft).toEqual({
+        status: 'active',
+        search: 'hello',
+        tags: ['a'],
+      });
       expect(result.current.applied).toEqual(DEFAULTS);
     });
 
-    it('changing draft makes isDirty true', () => {
+    it('resetDraft reverts draft to current applied values', () => {
       const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS }));
 
-      expect(result.current.isDirty).toBe(false);
+      // Apply some filters first
+      act(() => result.current.setDraftFieldValue('status', 'active'));
+      act(() => result.current.apply());
 
+      // Change draft further
       act(() => result.current.setDraftFieldValue('search', 'test'));
-      expect(result.current.isDirty).toBe(true);
-    });
-  });
+      expect(result.current.draft.search).toBe('test');
 
-  // ── Apply ──
-
-  describe('apply', () => {
-    it('copies draft into applied', () => {
-      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS }));
-
-      act(() => result.current.setDraftFieldValue('search', 'acme'));
-      act(() => result.current.setDraftFieldValue('status', 'T'));
-      act(() => result.current.apply());
-
-      expect(result.current.applied.search).toBe('acme');
-      expect(result.current.applied.status).toBe('T');
-    });
-
-    it('isDirty becomes false after apply', () => {
-      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS }));
-
-      act(() => result.current.setDraftFieldValue('search', 'acme'));
-      expect(result.current.isDirty).toBe(true);
-
-      act(() => result.current.apply());
-      expect(result.current.isDirty).toBe(false);
-    });
-
-    it('activeCount updates after apply', () => {
-      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS }));
-
-      act(() => result.current.setDraftFieldValue('search', 'acme'));
-      // Not applied yet — activeCount still 0
-      expect(result.current.activeCount).toBe(0);
-
-      act(() => result.current.apply());
-      expect(result.current.activeCount).toBe(1);
-    });
-  });
-
-  // ── Reset draft ──
-
-  describe('resetDraft', () => {
-    it('reverts draft back to applied', () => {
-      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS }));
-
-      // Apply a filter
-      act(() => result.current.setDraftFieldValue('search', 'acme'));
-      act(() => result.current.apply());
-
-      // Make a new draft change
-      act(() => result.current.setDraftFieldValue('search', 'something else'));
-      expect(result.current.draft.search).toBe('something else');
-      expect(result.current.isDirty).toBe(true);
-
-      // Reset draft — goes back to applied
+      // Reset draft → should go back to applied (status: 'active', search: '')
       act(() => result.current.resetDraft());
-      expect(result.current.draft.search).toBe('acme');
-      expect(result.current.isDirty).toBe(false);
+
+      expect(result.current.draft).toEqual({ status: 'active', search: '', tags: [] });
+    });
+
+    it('resetFields resets specific draft fields to defaults', () => {
+      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS }));
+
+      act(() => result.current.setDraft({ status: 'active', search: 'hello', tags: ['a'] }));
+      act(() => result.current.resetFields(['status', 'tags']));
+
+      expect(result.current.draft.status).toBe('');
+      expect(result.current.draft.tags).toEqual([]);
+      expect(result.current.draft.search).toBe('hello'); // untouched
+    });
+
+    it('resetFields ignores unknown field names', () => {
+      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS }));
+
+      act(() => result.current.setDraftFieldValue('status', 'active'));
+      act(() => result.current.resetFields(['nonexistent']));
+
+      expect(result.current.draft.status).toBe('active');
     });
   });
 
-  // ── Reset applied ──
+  // ══════════════════════════════════════════════════════════════
+  // Apply / Reset
+  // ══════════════════════════════════════════════════════════════
 
-  describe('resetApplied', () => {
-    it('clears everything back to defaults', () => {
+  describe('apply and reset', () => {
+    it('apply copies draft to applied', () => {
       const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS }));
 
-      // Apply some filters
-      act(() => result.current.setDraftFieldValue('search', 'acme'));
-      act(() => result.current.setDraftFieldValue('status', 'T'));
+      act(() => result.current.setDraftFieldValue('status', 'active'));
       act(() => result.current.apply());
 
-      expect(result.current.activeCount).toBe(2);
+      expect(result.current.applied.status).toBe('active');
+      expect(result.current.isDirty).toBe(false);
+    });
 
-      // Reset
+    it('resetApplied clears both draft and applied to defaults', () => {
+      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS }));
+
+      act(() => result.current.setDraftFieldValue('status', 'active'));
+      act(() => result.current.apply());
+      expect(result.current.applied.status).toBe('active');
+
       act(() => result.current.resetApplied());
+
       expect(result.current.draft).toEqual(DEFAULTS);
       expect(result.current.applied).toEqual(DEFAULTS);
-      expect(result.current.activeCount).toBe(0);
+    });
+  });
+
+  // ══════════════════════════════════════════════════════════════
+  // Dirty tracking
+  // ══════════════════════════════════════════════════════════════
+
+  describe('dirty tracking', () => {
+    it('is dirty when draft differs from applied', () => {
+      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS }));
+
+      act(() => result.current.setDraftFieldValue('status', 'active'));
+      expect(result.current.isDirty).toBe(true);
+    });
+
+    it('is not dirty after apply', () => {
+      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS }));
+
+      act(() => result.current.setDraftFieldValue('status', 'active'));
+      act(() => result.current.apply());
+      expect(result.current.isDirty).toBe(false);
+    });
+
+    it('is not dirty after resetDraft', () => {
+      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS }));
+
+      act(() => result.current.setDraftFieldValue('status', 'active'));
+      expect(result.current.isDirty).toBe(true);
+
+      act(() => result.current.resetDraft());
+      expect(result.current.isDirty).toBe(false);
+    });
+
+    it('is not dirty when draft is changed back to match applied', () => {
+      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS }));
+
+      act(() => result.current.setDraftFieldValue('status', 'active'));
+      expect(result.current.isDirty).toBe(true);
+
+      act(() => result.current.setDraftFieldValue('status', ''));
       expect(result.current.isDirty).toBe(false);
     });
   });
 
-  // ── Reset fields ──
+  // ══════════════════════════════════════════════════════════════
+  // Active count
+  // ══════════════════════════════════════════════════════════════
 
-  describe('resetFields', () => {
-    it('resets specific draft fields to defaults', () => {
+  describe('active count', () => {
+    it('counts non-empty applied fields', () => {
       const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS }));
 
-      act(() => {
-        result.current.setDraftFieldValue('search', 'acme');
-        result.current.setDraftFieldValue('status', 'T');
-        result.current.setDraftFieldValue('groupId', 5);
-      });
-
-      // Reset only search and status
-      act(() => result.current.resetFields(['search', 'status']));
-
-      expect(result.current.draft.search).toBe('');
-      expect(result.current.draft.status).toBeNull();
-      // groupId untouched
-      expect(result.current.draft.groupId).toBe(5);
-    });
-
-    it('does not affect applied values', () => {
-      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS }));
-
-      act(() => result.current.setDraftFieldValue('search', 'acme'));
+      act(() => result.current.setDraft({ status: 'active', search: 'test', tags: [] }));
       act(() => result.current.apply());
 
-      act(() => result.current.resetFields(['search']));
-      // Draft reset
-      expect(result.current.draft.search).toBe('');
-      // Applied unchanged
-      expect(result.current.applied.search).toBe('acme');
-    });
-  });
-
-  // ── Active count ──
-
-  describe('activeCount', () => {
-    it('counts non-empty applied values', () => {
-      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS }));
-
-      act(() => {
-        result.current.setDraftFieldValue('search', 'acme');
-        result.current.setDraftFieldValue('status', 'T');
-        result.current.setDraftFieldValue('groupId', 3);
-      });
-      act(() => result.current.apply());
-
-      expect(result.current.activeCount).toBe(3);
+      // status: 'active' ✓, search: 'test' ✓, tags: [] ✗
+      expect(result.current.activeCount).toBe(2);
+      expect(result.current.hasActiveFilters).toBe(true);
     });
 
-    it('does not count null, empty string, or empty array', () => {
+    it('returns 0 when no filters are applied', () => {
       const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS }));
 
-      act(() => {
-        result.current.setDraftFieldValue('search', '');
-        result.current.setDraftFieldValue('status', null);
-        result.current.setDraftFieldValue('tags', []);
-      });
-      act(() => result.current.apply());
+      expect(result.current.activeCount).toBe(0);
+      expect(result.current.hasActiveFilters).toBe(false);
+    });
 
+    it('does not count draft-only changes', () => {
+      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS }));
+
+      act(() => result.current.setDraftFieldValue('status', 'active'));
+
+      // Draft changed but not applied — activeCount stays 0
       expect(result.current.activeCount).toBe(0);
     });
 
-    it('supports custom isFieldActive', () => {
-      const { result } = renderHook(() =>
-        useFilter({
-          defaultValues: DEFAULTS,
-          isFieldActive: (key, value) => {
-            // Only count 'search' as active
-            if (key === 'search') return typeof value === 'string' && value.length > 0;
-            return false;
-          },
-        }),
-      );
+    it('counts non-empty arrays as active', () => {
+      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS }));
 
-      act(() => {
-        result.current.setDraftFieldValue('search', 'acme');
-        result.current.setDraftFieldValue('status', 'T');
-      });
+      act(() => result.current.setDraftFieldValue('tags', ['a', 'b']));
       act(() => result.current.apply());
 
-      // Only search counts
+      expect(result.current.activeCount).toBe(1);
+    });
+
+    it('uses custom isFieldActive when provided', () => {
+      // Custom: only count 'status' as active, ignore everything else
+      const isFieldActive = (key: keyof TestFilter, value: unknown) => {
+        if (key === 'status') return value !== '';
+        return false;
+      };
+
+      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS, isFieldActive }));
+
+      act(() => result.current.setDraft({ status: 'active', search: 'test', tags: ['a'] }));
+      act(() => result.current.apply());
+
+      // Only status counts
       expect(result.current.activeCount).toBe(1);
     });
   });
 
-  // ── Integration: useFieldVisibility bridge ──
+  // ══════════════════════════════════════════════════════════════
+  // Lifecycle callbacks
+  // ══════════════════════════════════════════════════════════════
 
-  describe('resetFields as useFieldVisibility bridge', () => {
-    it('simulates hide field → reset draft flow', () => {
-      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS }));
+  describe('onApply', () => {
+    it('is called with applied values when apply() is called', () => {
+      const onApply = vi.fn();
 
-      // User sets filters
-      act(() => {
-        result.current.setDraftFieldValue('search', 'acme');
-        result.current.setDraftFieldValue('status', 'T');
-        result.current.setDraftFieldValue('groupId', 5);
+      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS, onApply }));
+
+      act(() => result.current.setDraftFieldValue('status', 'active'));
+      act(() => result.current.apply());
+
+      expect(onApply).toHaveBeenCalledTimes(1);
+      expect(onApply).toHaveBeenCalledWith({
+        status: 'active',
+        search: '',
+        tags: [],
       });
+    });
 
-      // User hides the status field → onFieldsHidden calls resetFields
+    it('is not called on setDraftFieldValue', () => {
+      const onApply = vi.fn();
+
+      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS, onApply }));
+
+      act(() => result.current.setDraftFieldValue('status', 'active'));
+
+      expect(onApply).not.toHaveBeenCalled();
+    });
+
+    it('is not called on resetApplied', () => {
+      const onApply = vi.fn();
+
+      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS, onApply }));
+
+      act(() => result.current.setDraftFieldValue('status', 'active'));
+      act(() => result.current.apply());
+      onApply.mockClear();
+
+      act(() => result.current.resetApplied());
+
+      // resetApplied fires onReset, not onApply
+      expect(onApply).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('onReset', () => {
+    it('is called when resetApplied() is called', () => {
+      const onReset = vi.fn();
+
+      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS, onReset }));
+
+      act(() => result.current.setDraftFieldValue('status', 'active'));
+      act(() => result.current.apply());
+      act(() => result.current.resetApplied());
+
+      expect(onReset).toHaveBeenCalledTimes(1);
+    });
+
+    it('is not called on apply', () => {
+      const onReset = vi.fn();
+
+      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS, onReset }));
+
+      act(() => result.current.setDraftFieldValue('status', 'active'));
+      act(() => result.current.apply());
+
+      expect(onReset).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('onDraftChange', () => {
+    it('is called with new draft values on setDraftFieldValue', () => {
+      const onDraftChange = vi.fn();
+
+      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS, onDraftChange }));
+
+      act(() => result.current.setDraftFieldValue('status', 'active'));
+
+      expect(onDraftChange).toHaveBeenCalledTimes(1);
+      expect(onDraftChange).toHaveBeenCalledWith({
+        status: 'active',
+        search: '',
+        tags: [],
+      });
+    });
+
+    it('is called with new draft values on setDraft', () => {
+      const onDraftChange = vi.fn();
+
+      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS, onDraftChange }));
+
+      act(() => result.current.setDraft({ status: 'active', search: 'hello', tags: [] }));
+
+      expect(onDraftChange).toHaveBeenCalledTimes(1);
+      expect(onDraftChange).toHaveBeenCalledWith({
+        status: 'active',
+        search: 'hello',
+        tags: [],
+      });
+    });
+
+    it('is not called on resetDraft (not a user edit)', () => {
+      const onDraftChange = vi.fn();
+
+      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS, onDraftChange }));
+
+      act(() => result.current.setDraftFieldValue('status', 'active'));
+      onDraftChange.mockClear();
+
+      act(() => result.current.resetDraft());
+
+      // resetDraft is "undo my edits", not "user edited a field"
+      expect(onDraftChange).not.toHaveBeenCalled();
+    });
+
+    it('is not called on resetFields', () => {
+      const onDraftChange = vi.fn();
+
+      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS, onDraftChange }));
+
+      act(() => result.current.setDraftFieldValue('status', 'active'));
+      onDraftChange.mockClear();
+
       act(() => result.current.resetFields(['status']));
 
-      expect(result.current.draft.status).toBeNull();
-      expect(result.current.draft.search).toBe('acme');
-      expect(result.current.draft.groupId).toBe(5);
+      expect(onDraftChange).not.toHaveBeenCalled();
+    });
+  });
 
-      // User applies — status won't be in the query
+  // ══════════════════════════════════════════════════════════════
+  // Combined
+  // ══════════════════════════════════════════════════════════════
+
+  describe('full workflow', () => {
+    it('edit → apply → edit more → resetDraft → apply again', () => {
+      const onApply = vi.fn();
+
+      const { result } = renderHook(() => useFilter({ defaultValues: DEFAULTS, onApply }));
+
+      // Edit draft
+      act(() => result.current.setDraftFieldValue('status', 'active'));
+      expect(result.current.isDirty).toBe(true);
+
+      // Apply
       act(() => result.current.apply());
-      expect(result.current.applied.status).toBeNull();
-      expect(result.current.activeCount).toBe(2);
+      expect(result.current.isDirty).toBe(false);
+      expect(result.current.activeCount).toBe(1);
+
+      // Edit more
+      act(() => result.current.setDraftFieldValue('search', 'test'));
+      expect(result.current.isDirty).toBe(true);
+
+      // Discard draft edits
+      act(() => result.current.resetDraft());
+      expect(result.current.isDirty).toBe(false);
+      expect(result.current.draft.search).toBe(''); // reverted
+      expect(result.current.applied.status).toBe('active'); // unchanged
+
+      // Edit and apply again
+      act(() => result.current.setDraftFieldValue('tags', ['a']));
+      act(() => result.current.apply());
+
+      expect(onApply).toHaveBeenCalledTimes(2);
+      expect(result.current.activeCount).toBe(2); // status + tags
     });
   });
 });

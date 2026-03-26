@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState } from 'react';
+import { isEqual } from '../lib/is-equal';
 
 // ── Types ──
 
@@ -9,6 +10,15 @@ export interface UseFilterOptions<TFilter extends Record<string, unknown>> {
   defaultValues: TFilter;
   /** Count a field as "active" if it differs from this */
   isFieldActive?: (key: keyof TFilter, value: unknown) => boolean;
+
+  // ── Lifecycle callbacks ──
+
+  /** Called after draft is copied to applied (via apply()) */
+  onApply?: (values: TFilter) => void;
+  /** Called after filters are reset to defaults (via resetApplied()) */
+  onReset?: () => void;
+  /** Called when draft values change (via setDraftFieldValue or setDraft) */
+  onDraftChange?: (values: TFilter) => void;
 }
 
 export interface UseFilterReturn<TFilter extends Record<string, unknown>> {
@@ -44,89 +54,76 @@ function defaultIsFieldActive(_key: string, value: unknown): boolean {
   return true;
 }
 
-// ── Deep equality check (simple, covers our use case) ──
-
-function isEqual(a: unknown, b: unknown): boolean {
-  if (a === b) return true;
-  if (a === null || b === null) return a === b;
-  if (a === undefined || b === undefined) return a === b;
-  if (typeof a !== typeof b) return false;
-  if (typeof a !== 'object') return a === b;
-  if (Array.isArray(a) && Array.isArray(b)) {
-    if (a.length !== b.length) return false;
-    return a.every((v, i) => isEqual(v, b[i]));
-  }
-  const aObj = a as Record<string, unknown>;
-  const bObj = b as Record<string, unknown>;
-  const aKeys = Object.keys(aObj);
-  const bKeys = Object.keys(bObj);
-  if (aKeys.length !== bKeys.length) return false;
-  return aKeys.every((key) => isEqual(aObj[key], bObj[key]));
-}
-
 // ── Hook ──
 
 export function useFilter<TFilter extends Record<string, unknown>>(
   options: UseFilterOptions<TFilter>,
 ): UseFilterReturn<TFilter> {
-  const { defaultValues, isFieldActive } = options;
+  const { defaultValues, isFieldActive, onApply, onReset, onDraftChange } = options;
 
   const checkActive = isFieldActive ?? defaultIsFieldActive;
 
   const [draft, setDraftState] = useState<TFilter>(() => ({ ...defaultValues }));
   const [applied, setApplied] = useState<TFilter>(() => ({ ...defaultValues }));
 
-  const setDraftFieldValue = useCallback(<K extends keyof TFilter>(key: K, value: TFilter[K]) => {
-    setDraftState((prev) => ({ ...prev, [key]: value }));
-  }, []);
+  // ── Draft operations ──
 
-  const setDraft = useCallback((values: TFilter) => {
-    setDraftState({ ...values });
-  }, []);
+  const setDraftFieldValue = <K extends keyof TFilter>(key: K, value: TFilter[K]) => {
+    setDraftState((prev) => {
+      const next = { ...prev, [key]: value };
+      onDraftChange?.(next);
+      return next;
+    });
+  };
 
-  const apply = useCallback(() => {
-    setApplied({ ...draft });
-  }, [draft]);
+  const setDraft = (values: TFilter) => {
+    const next = { ...values };
+    setDraftState(next);
+    onDraftChange?.(next);
+  };
 
-  const resetDraft = useCallback(() => {
+  // ── Apply / Reset ──
+
+  const apply = () => {
+    const snapshot = { ...draft };
+    setApplied(snapshot);
+    onApply?.(snapshot);
+  };
+
+  const resetDraft = () => {
     setDraftState({ ...applied });
-  }, [applied]);
+  };
 
-  const resetApplied = useCallback(() => {
+  const resetApplied = () => {
     setDraftState({ ...defaultValues });
     setApplied({ ...defaultValues });
-  }, [defaultValues]);
+    onReset?.();
+  };
 
-  const resetFields = useCallback(
-    (fieldNames: string[]) => {
-      setDraftState((prev) => {
-        const next = { ...prev };
-        for (const name of fieldNames) {
-          if (name in defaultValues) {
-            (next as Record<string, unknown>)[name] = defaultValues[name as keyof TFilter];
-          }
+  const resetFields = (fieldNames: string[]) => {
+    setDraftState((prev) => {
+      const next = { ...prev };
+      for (const name of fieldNames) {
+        if (name in defaultValues) {
+          (next as Record<string, unknown>)[name] = defaultValues[name as keyof TFilter];
         }
-        return next;
-      });
-    },
-    [defaultValues],
-  );
+      }
+      return next;
+    });
+  };
 
   // ── Derived state ──
 
-  const activeCount = useMemo(() => {
-    let count = 0;
-    for (const key of Object.keys(applied)) {
-      if (checkActive(key, applied[key as keyof TFilter])) {
-        count++;
-      }
+  let activeCount = 0;
+  for (const key of Object.keys(applied)) {
+    if (checkActive(key, applied[key as keyof TFilter])) {
+      activeCount++;
     }
-    return count;
-  }, [applied, checkActive]);
+  }
 
   const hasActiveFilters = activeCount > 0;
 
-  const isDirty = useMemo(() => !isEqual(draft, applied), [draft, applied]);
+  const isDirty = !isEqual(draft, applied);
 
   return {
     draft,
