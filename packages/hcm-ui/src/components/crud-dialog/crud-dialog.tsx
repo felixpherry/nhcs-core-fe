@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import type { ReactNode } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -11,40 +11,39 @@ import {
 } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { ConfirmDialog } from '../confirm-dialog/confirm-dialog';
-import type { FormMode } from '../../hooks/use-crud-form';
+import type { FormMode, UseCrudFormReturn } from '../../hooks/use-crud-form';
 
-// ── Props ──
-
-export interface CrudDialogProps {
-  /** Whether the dialog is open */
-  isOpen: boolean;
-  /** Current form mode */
-  mode: FormMode;
-  /** Title — auto-generated from mode + entity if not provided */
+export interface CrudDialogProps<TForm extends Record<string, unknown>> {
+  /** The return value from useCrudForm */
+  crud: UseCrudFormReturn<TForm>;
+  /** Called when user clicks Save/Create */
+  onSubmit: () => void;
+  /** Whether the form is submitting */
+  isSubmitting?: boolean;
+  /** Entity name for auto-title (e.g. "Company") */
+  entityName?: string;
+  /** Custom title override */
   title?: string;
   /** Description */
   description?: string;
-  /** Entity name for auto-title (e.g. "Company") */
-  entityName?: string;
-  /** Whether form has unsaved changes */
-  isDirty: boolean;
-  /** Whether form is submitting */
-  isSubmitting?: boolean;
-  /** Whether form is loading data */
-  isLoading?: boolean;
-  /** Called when user tries to close */
-  onClose: () => void;
-  /** Called when user confirms discard */
-  onForceClose: () => void;
-  /** Called when user clicks Save/Create */
-  onSubmit: () => void;
   /** Max width class for the dialog. Default: 'sm:max-w-2xl' */
   maxWidth?: string;
+  /**
+   * Override the default footer. Receives context for building custom buttons.
+   * When omitted, renders the default Cancel/Create/Save Changes footer.
+   */
+  renderFooter?: (ctx: {
+    mode: FormMode;
+    isDirty: boolean;
+    isSubmitting: boolean;
+    onClose: () => void;
+    onSubmit: () => void;
+  }) => ReactNode;
   /** Form content */
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
-// ── Auto title ──
+// ── Helpers ──
 
 function getTitle(mode: FormMode, entityName?: string, customTitle?: string): string {
   if (customTitle) return customTitle;
@@ -72,49 +71,50 @@ function getSubmitLabel(mode: FormMode): string {
 
 // ── Component ──
 
-export function CrudDialog(props: CrudDialogProps) {
+export function CrudDialog<TForm extends Record<string, unknown>>(props: CrudDialogProps<TForm>) {
   const {
-    isOpen,
-    mode,
+    crud,
+    onSubmit,
+    isSubmitting = false,
+    entityName,
     title,
     description,
-    entityName,
-    isDirty,
-    isSubmitting = false,
-    isLoading = false,
-    onClose,
-    onForceClose,
-    onSubmit,
     maxWidth = 'sm:max-w-2xl',
+    renderFooter,
     children,
   } = props;
 
-  const [showDiscardDialog, setShowDiscardDialog] = useState(false);
+  // ── Default footer ──
 
-  const handleClose = useCallback(() => {
-    if (isDirty) {
-      setShowDiscardDialog(true);
-    } else {
-      onClose();
-    }
-  }, [isDirty, onClose]);
-
-  const handleDiscard = useCallback(() => {
-    setShowDiscardDialog(false);
-    onForceClose();
-  }, [onForceClose]);
+  const defaultFooter =
+    crud.mode === 'view' ? (
+      <DialogFooter>
+        <Button variant="outline" onClick={crud.requestClose}>
+          Close
+        </Button>
+      </DialogFooter>
+    ) : (
+      <DialogFooter className="gap-2">
+        <Button variant="outline" onClick={crud.requestClose} disabled={isSubmitting}>
+          Cancel
+        </Button>
+        <Button onClick={onSubmit} disabled={isSubmitting || crud.isLoading}>
+          {isSubmitting ? 'Saving...' : getSubmitLabel(crud.mode)}
+        </Button>
+      </DialogFooter>
+    );
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <Dialog open={crud.isOpen} onOpenChange={(open) => !open && crud.requestClose()}>
         <DialogContent className={`${maxWidth} max-h-[90vh] overflow-y-auto`}>
           <DialogHeader>
-            <DialogTitle>{getTitle(mode, entityName, title)}</DialogTitle>
+            <DialogTitle>{getTitle(crud.mode, entityName, title)}</DialogTitle>
             {description && <DialogDescription>{description}</DialogDescription>}
           </DialogHeader>
 
           <div className="py-4">
-            {isLoading ? (
+            {crud.isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <span className="text-muted-foreground">Loading...</span>
               </div>
@@ -123,37 +123,28 @@ export function CrudDialog(props: CrudDialogProps) {
             )}
           </div>
 
-          {mode !== 'view' && (
-            <DialogFooter className="gap-2">
-              <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
-                Cancel
-              </Button>
-              <Button onClick={onSubmit} disabled={isSubmitting || isLoading}>
-                {isSubmitting ? 'Saving...' : getSubmitLabel(mode)}
-              </Button>
-            </DialogFooter>
-          )}
-
-          {mode === 'view' && (
-            <DialogFooter>
-              <Button variant="outline" onClick={onClose}>
-                Close
-              </Button>
-            </DialogFooter>
-          )}
+          {renderFooter
+            ? renderFooter({
+                mode: crud.mode,
+                isDirty: crud.isDirty,
+                isSubmitting,
+                onClose: crud.requestClose,
+                onSubmit,
+              })
+            : defaultFooter}
         </DialogContent>
       </Dialog>
 
-      {/* Discard confirmation — uses ConfirmDialog instead of manual overlay */}
+      {/* Discard confirmation — driven entirely by hook state */}
       <ConfirmDialog
-        open={showDiscardDialog}
-        onOpenChange={setShowDiscardDialog}
+        open={crud.isCloseBlocked}
+        onOpenChange={(open) => !open && crud.cancelDiscard()}
         title="Unsaved Changes"
         description="You have unsaved changes. Do you want to discard them?"
         variant="destructive"
         confirmLabel="Discard"
         cancelLabel="Keep Editing"
-        onConfirm={handleDiscard}
+        onConfirm={crud.confirmDiscard}
       />
     </>
   );
