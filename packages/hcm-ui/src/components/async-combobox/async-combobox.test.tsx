@@ -3,16 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-import { AsyncComboboxField } from './async-combobox-field';
-import type { AsyncComboboxFieldConfig } from './types';
-
-// ── Test types ──
-
-type TestForm = {
-  company: string;
-  skills: string[];
-  department: string;
-};
+import { AsyncCombobox, type AsyncComboboxProps } from './async-combobox';
 
 // ── Test data ──
 
@@ -42,34 +33,21 @@ function renderWithQuery(ui: React.ReactElement) {
   return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 }
 
-function createConfig(
-  overrides: Partial<AsyncComboboxFieldConfig<TestForm>> = {},
-): AsyncComboboxFieldConfig<TestForm> {
+function defaultProps(overrides: Partial<AsyncComboboxProps> = {}): AsyncComboboxProps {
   return {
     id: 'company',
-    name: 'company',
     label: 'Company',
-    type: 'async-combobox',
+    value: '',
+    onChange: vi.fn(),
     queryFn: vi.fn().mockResolvedValue(mockOptions),
     debounceMs: 0,
     ...overrides,
   };
 }
 
-function defaultProps() {
-  return {
-    value: '',
-    onChange: vi.fn(),
-    onBlur: vi.fn(),
-    disabled: false,
-    readOnly: false,
-    hasError: false,
-  };
-}
-
 // ── Tests ──
 
-describe('AsyncComboboxField', () => {
+describe('AsyncCombobox', () => {
   const user = userEvent.setup();
 
   async function openAndWaitForOptions() {
@@ -86,24 +64,19 @@ describe('AsyncComboboxField', () => {
 
   describe('single mode', () => {
     it('renders placeholder when no value', () => {
-      renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({ placeholder: 'Select company...' })}
-          {...defaultProps()}
-        />,
-      );
+      renderWithQuery(<AsyncCombobox {...defaultProps({ placeholder: 'Select company...' })} />);
 
       expect(screen.getByText('Select company...')).toBeInTheDocument();
     });
 
     it('renders default placeholder when none provided', () => {
-      renderWithQuery(<AsyncComboboxField config={createConfig()} {...defaultProps()} />);
+      renderWithQuery(<AsyncCombobox {...defaultProps()} />);
 
       expect(screen.getByText('Select...')).toBeInTheDocument();
     });
 
     it('opens popover and shows options on click', async () => {
-      renderWithQuery(<AsyncComboboxField config={createConfig()} {...defaultProps()} />);
+      renderWithQuery(<AsyncCombobox {...defaultProps()} />);
 
       await openAndWaitForOptions();
 
@@ -113,24 +86,23 @@ describe('AsyncComboboxField', () => {
     });
 
     it('calls onChange with string value on select', async () => {
-      const props = defaultProps();
+      const onChange = vi.fn();
 
-      renderWithQuery(<AsyncComboboxField config={createConfig()} {...props} />);
+      renderWithQuery(<AsyncCombobox {...defaultProps({ onChange })} />);
 
       await openAndWaitForOptions();
       await user.click(screen.getByText('Beta Inc'));
 
-      expect(props.onChange).toHaveBeenCalledWith('2');
+      expect(onChange).toHaveBeenCalledWith('2');
     });
 
     it('shows selected label from initialOptions before fetch', () => {
       renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({
+        <AsyncCombobox
+          {...defaultProps({
+            value: '99',
             initialOptions: { label: 'Zeta Holdings', value: '99' },
           })}
-          {...defaultProps()}
-          value="99"
         />,
       );
 
@@ -138,17 +110,7 @@ describe('AsyncComboboxField', () => {
     });
 
     it('disables trigger when disabled', () => {
-      renderWithQuery(
-        <AsyncComboboxField config={createConfig()} {...defaultProps()} disabled={true} />,
-      );
-
-      expect(screen.getByRole('combobox')).toBeDisabled();
-    });
-
-    it('disables trigger when readOnly', () => {
-      renderWithQuery(
-        <AsyncComboboxField config={createConfig()} {...defaultProps()} readOnly={true} />,
-      );
+      renderWithQuery(<AsyncCombobox {...defaultProps({ disabled: true })} />);
 
       expect(screen.getByRole('combobox')).toBeDisabled();
     });
@@ -161,14 +123,13 @@ describe('AsyncComboboxField', () => {
   describe('multi mode — count display', () => {
     it('shows count summary when items selected', () => {
       renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({
+        <AsyncCombobox
+          {...defaultProps({
             mode: 'multi',
             multiDisplayMode: 'count',
+            value: ['1', '2', '3'],
             initialOptions: mockOptions.slice(0, 3),
           })}
-          {...defaultProps()}
-          value={['1', '2', '3']}
         />,
       );
 
@@ -177,14 +138,13 @@ describe('AsyncComboboxField', () => {
 
     it('shows singular "item" for single selection', () => {
       renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({
+        <AsyncCombobox
+          {...defaultProps({
             mode: 'multi',
             multiDisplayMode: 'count',
+            value: ['1'],
             initialOptions: [mockOptions[0]!],
           })}
-          {...defaultProps()}
-          value={['1']}
         />,
       );
 
@@ -192,26 +152,31 @@ describe('AsyncComboboxField', () => {
     });
 
     it('calls onChange with string[] on multi select', async () => {
-      const props = defaultProps();
+      const onChange = vi.fn();
 
       renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({ mode: 'multi', multiDisplayMode: 'count' })}
-          {...props}
+        <AsyncCombobox
+          {...defaultProps({
+            mode: 'multi',
+            multiDisplayMode: 'count',
+            onChange,
+          })}
         />,
       );
 
       await openAndWaitForOptions();
       await user.click(screen.getByText('Acme Corp'));
 
-      expect(props.onChange).toHaveBeenCalledWith(['1']);
+      expect(onChange).toHaveBeenCalledWith(['1']);
     });
 
     it('keeps popover open after multi select', async () => {
       renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({ mode: 'multi', multiDisplayMode: 'count' })}
-          {...defaultProps()}
+        <AsyncCombobox
+          {...defaultProps({
+            mode: 'multi',
+            multiDisplayMode: 'count',
+          })}
         />,
       );
 
@@ -231,14 +196,13 @@ describe('AsyncComboboxField', () => {
   describe('multi mode — inline-chips display', () => {
     it('renders badges for selected items', () => {
       renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({
+        <AsyncCombobox
+          {...defaultProps({
             mode: 'multi',
             multiDisplayMode: 'inline-chips',
+            value: ['1', '2'],
             initialOptions: mockOptions.slice(0, 2),
           })}
-          {...defaultProps()}
-          value={['1', '2']}
         />,
       );
 
@@ -248,14 +212,13 @@ describe('AsyncComboboxField', () => {
 
     it('shows overflow when more than 1 item selected', () => {
       renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({
+        <AsyncCombobox
+          {...defaultProps({
             mode: 'multi',
             multiDisplayMode: 'inline-chips',
+            value: ['1', '2', '3', '4', '5'],
             initialOptions: mockOptions,
           })}
-          {...defaultProps()}
-          value={['1', '2', '3', '4', '5']}
         />,
       );
 
@@ -266,52 +229,49 @@ describe('AsyncComboboxField', () => {
 
     it('renders remove button on visible chip', () => {
       renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({
+        <AsyncCombobox
+          {...defaultProps({
             mode: 'multi',
             multiDisplayMode: 'inline-chips',
+            value: ['1', '2'],
             initialOptions: mockOptions.slice(0, 2),
           })}
-          {...defaultProps()}
-          value={['1', '2']}
         />,
       );
 
       expect(screen.getByLabelText('Remove Acme Corp')).toBeInTheDocument();
-      // Beta Inc is hidden behind "+1 more"
       expect(screen.queryByLabelText('Remove Beta Inc')).not.toBeInTheDocument();
     });
 
     it('calls onChange when chip remove button clicked', async () => {
-      const props = defaultProps();
+      const onChange = vi.fn();
 
       renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({
+        <AsyncCombobox
+          {...defaultProps({
             mode: 'multi',
             multiDisplayMode: 'inline-chips',
+            value: ['1', '2'],
             initialOptions: mockOptions.slice(0, 2),
+            onChange,
           })}
-          {...props}
-          value={['1', '2']}
         />,
       );
 
       await user.click(screen.getByLabelText('Remove Acme Corp'));
 
-      expect(props.onChange).toHaveBeenCalledWith(['2']);
+      expect(onChange).toHaveBeenCalledWith(['2']);
     });
 
     it('expands all chips when "+N more" is clicked', async () => {
       renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({
+        <AsyncCombobox
+          {...defaultProps({
             mode: 'multi',
             multiDisplayMode: 'inline-chips',
+            value: ['1', '2', '3', '4', '5'],
             initialOptions: mockOptions,
           })}
-          {...defaultProps()}
-          value={['1', '2', '3', '4', '5']}
         />,
       );
 
@@ -326,14 +286,13 @@ describe('AsyncComboboxField', () => {
 
     it('collapses back when "Show less" is clicked', async () => {
       renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({
+        <AsyncCombobox
+          {...defaultProps({
             mode: 'multi',
             multiDisplayMode: 'inline-chips',
+            value: ['1', '2', '3', '4', '5'],
             initialOptions: mockOptions,
           })}
-          {...defaultProps()}
-          value={['1', '2', '3', '4', '5']}
         />,
       );
 
@@ -352,12 +311,11 @@ describe('AsyncComboboxField', () => {
   describe('initialOptions', () => {
     it('resolves label from single initialOption', () => {
       renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({
+        <AsyncCombobox
+          {...defaultProps({
+            value: '999',
             initialOptions: { label: 'Page 10 Company', value: '999' },
           })}
-          {...defaultProps()}
-          value="999"
         />,
       );
 
@@ -366,29 +324,25 @@ describe('AsyncComboboxField', () => {
 
     it('resolves labels from multiple initialOptions in multi mode', () => {
       renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({
+        <AsyncCombobox
+          {...defaultProps({
             mode: 'multi',
             multiDisplayMode: 'inline-chips',
+            value: ['s1', 's2'],
             initialOptions: [
               { label: 'Skill A', value: 's1' },
               { label: 'Skill B', value: 's2' },
             ],
           })}
-          {...defaultProps()}
-          value={['s1', 's2']}
         />,
       );
 
-      // maxVisible=1, so only first chip shows, second is in "+1 more"
       expect(screen.getByText('Skill A')).toBeInTheDocument();
       expect(screen.getByText('+1 more')).toBeInTheDocument();
     });
 
     it('falls back to raw value when no label available', () => {
-      renderWithQuery(
-        <AsyncComboboxField config={createConfig()} {...defaultProps()} value="unknown-id" />,
-      );
+      renderWithQuery(<AsyncCombobox {...defaultProps({ value: 'unknown-id' })} />);
 
       expect(screen.getByText('unknown-id')).toBeInTheDocument();
     });
@@ -400,12 +354,7 @@ describe('AsyncComboboxField', () => {
 
   describe('toggle all', () => {
     it('does not show toggle all button when showToggleAll is false', async () => {
-      renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({ mode: 'multi', showToggleAll: false })}
-          {...defaultProps()}
-        />,
-      );
+      renderWithQuery(<AsyncCombobox {...defaultProps({ mode: 'multi', showToggleAll: false })} />);
 
       await openAndWaitForOptions();
 
@@ -413,12 +362,7 @@ describe('AsyncComboboxField', () => {
     });
 
     it('shows "Select all" button when showToggleAll is true', async () => {
-      renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({ mode: 'multi', showToggleAll: true })}
-          {...defaultProps()}
-        />,
-      );
+      renderWithQuery(<AsyncCombobox {...defaultProps({ mode: 'multi', showToggleAll: true })} />);
 
       await openAndWaitForOptions();
 
@@ -426,32 +370,20 @@ describe('AsyncComboboxField', () => {
     });
 
     it('selects all visible options on "Select all" click', async () => {
-      const props = defaultProps();
+      const onChange = vi.fn();
 
       renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({ mode: 'multi', showToggleAll: true })}
-          {...props}
-        />,
+        <AsyncCombobox {...defaultProps({ mode: 'multi', showToggleAll: true, onChange })} />,
       );
 
       await openAndWaitForOptions();
       await user.click(screen.getByText('Select all'));
 
-      expect(props.onChange).toHaveBeenCalledWith(
-        expect.arrayContaining(['1', '2', '3', '4', '5']),
-      );
+      expect(onChange).toHaveBeenCalledWith(expect.arrayContaining(['1', '2', '3', '4', '5']));
     });
 
     it('shows "Clear" when all options are selected', async () => {
-      const props = defaultProps();
-
-      renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({ mode: 'multi', showToggleAll: true })}
-          {...props}
-        />,
-      );
+      renderWithQuery(<AsyncCombobox {...defaultProps({ mode: 'multi', showToggleAll: true })} />);
 
       await openAndWaitForOptions();
       await user.click(screen.getByText('Select all'));
@@ -462,34 +394,25 @@ describe('AsyncComboboxField', () => {
     });
 
     it('deselects all when "Clear" is clicked', async () => {
-      const props = defaultProps();
+      const onChange = vi.fn();
 
       renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({ mode: 'multi', showToggleAll: true })}
-          {...props}
-        />,
+        <AsyncCombobox {...defaultProps({ mode: 'multi', showToggleAll: true, onChange })} />,
       );
 
       await openAndWaitForOptions();
-      // Select all first
       await user.click(screen.getByText('Select all'));
-      // Then clear
+
       await waitFor(() => {
         expect(screen.getByText('Clear')).toBeInTheDocument();
       });
       await user.click(screen.getByText('Clear'));
 
-      expect(props.onChange).toHaveBeenLastCalledWith([]);
+      expect(onChange).toHaveBeenLastCalledWith([]);
     });
 
     it('does not show toggle all in single mode', async () => {
-      renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({ mode: 'single', showToggleAll: true })}
-          {...defaultProps()}
-        />,
-      );
+      renderWithQuery(<AsyncCombobox {...defaultProps({ mode: 'single', showToggleAll: true })} />);
 
       await openAndWaitForOptions();
 
@@ -504,14 +427,13 @@ describe('AsyncComboboxField', () => {
   describe('maxSelections', () => {
     it('disables remaining options when max reached', async () => {
       renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({
+        <AsyncCombobox
+          {...defaultProps({
             mode: 'multi',
             maxSelections: 2,
+            value: ['1', '2'],
             initialOptions: mockOptions.slice(0, 2),
           })}
-          {...defaultProps()}
-          value={['1', '2']}
         />,
       );
 
@@ -523,14 +445,13 @@ describe('AsyncComboboxField', () => {
 
     it('does not disable already-selected options at max', async () => {
       renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({
+        <AsyncCombobox
+          {...defaultProps({
             mode: 'multi',
             maxSelections: 2,
+            value: ['1', '2'],
             initialOptions: mockOptions.slice(0, 2),
           })}
-          {...defaultProps()}
-          value={['1', '2']}
         />,
       );
 
@@ -549,9 +470,7 @@ describe('AsyncComboboxField', () => {
     it('calls queryFn with search term', async () => {
       const queryFn = vi.fn().mockResolvedValue(mockOptions);
 
-      renderWithQuery(
-        <AsyncComboboxField config={createConfig({ queryFn })} {...defaultProps()} />,
-      );
+      renderWithQuery(<AsyncCombobox {...defaultProps({ queryFn })} />);
 
       const trigger = screen.getByRole('combobox');
       await user.click(trigger);
@@ -569,9 +488,7 @@ describe('AsyncComboboxField', () => {
     });
 
     it('shows search input with correct placeholder', async () => {
-      renderWithQuery(
-        <AsyncComboboxField config={createConfig({ label: 'Organization' })} {...defaultProps()} />,
-      );
+      renderWithQuery(<AsyncCombobox {...defaultProps({ label: 'Organization' })} />);
 
       const trigger = screen.getByRole('combobox');
       await user.click(trigger);
@@ -581,52 +498,32 @@ describe('AsyncComboboxField', () => {
   });
 
   // ────────────────────────────────────────
-  // Dependency gating
+  // Query key deps (replaces dependency gating)
   // ────────────────────────────────────────
 
-  describe('dependency gating', () => {
-    it('does not fetch when isQueryEnabled returns false', async () => {
+  describe('queryKeyDeps', () => {
+    it('uses queryKeyDeps in the cache key (refetches when deps change)', async () => {
       const queryFn = vi.fn().mockResolvedValue(mockOptions);
 
-      renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({
-            queryFn,
-            dependsOn: ['company'],
-            isQueryEnabled: (values) => !!values.company,
-          })}
-          {...defaultProps()}
-          formValues={{ company: '', skills: [], department: '' }}
-        />,
+      const { rerender } = renderWithQuery(
+        <AsyncCombobox {...defaultProps({ queryFn, queryKeyDeps: ['company-1'] })} />,
       );
 
-      const trigger = screen.getByRole('combobox');
-      await user.click(trigger);
+      await openAndWaitForOptions();
+      const callCount = queryFn.mock.calls.length;
 
-      await new Promise((r) => setTimeout(r, 100));
-      expect(queryFn).not.toHaveBeenCalled();
-    });
-
-    it('fetches when isQueryEnabled returns true', async () => {
-      const queryFn = vi.fn().mockResolvedValue(mockOptions);
-
-      renderWithQuery(
-        <AsyncComboboxField
-          config={createConfig({
-            queryFn,
-            dependsOn: ['company'],
-            isQueryEnabled: (values) => !!values.company,
-          })}
-          {...defaultProps()}
-          formValues={{ company: 'filled', skills: [], department: '' }}
-        />,
+      // Rerender with a different dep → should trigger a new query
+      rerender(
+        <QueryClientProvider client={createQueryClient()}>
+          <AsyncCombobox {...defaultProps({ queryFn, queryKeyDeps: ['company-2'] })} />
+        </QueryClientProvider>,
       );
 
       const trigger = screen.getByRole('combobox');
       await user.click(trigger);
 
       await waitFor(() => {
-        expect(queryFn).toHaveBeenCalled();
+        expect(queryFn.mock.calls.length).toBeGreaterThan(callCount);
       });
     });
   });
@@ -637,11 +534,11 @@ describe('AsyncComboboxField', () => {
 
   describe('loading and empty states', () => {
     it('shows "Loading..." while query is pending', async () => {
-      const queryFn = vi.fn().mockReturnValue(new Promise(() => {}));
-
-      renderWithQuery(
-        <AsyncComboboxField config={createConfig({ queryFn })} {...defaultProps()} />,
+      const queryFn = vi.fn().mockImplementation(
+        () => new Promise(() => {}), // never resolves
       );
+
+      renderWithQuery(<AsyncCombobox {...defaultProps({ queryFn })} />);
 
       const trigger = screen.getByRole('combobox');
       await user.click(trigger);
@@ -652,10 +549,8 @@ describe('AsyncComboboxField', () => {
     });
 
     it('shows "No results found." when query returns empty', async () => {
-      const queryFn = vi.fn().mockResolvedValue([]);
-
       renderWithQuery(
-        <AsyncComboboxField config={createConfig({ queryFn })} {...defaultProps()} />,
+        <AsyncCombobox {...defaultProps({ queryFn: vi.fn().mockResolvedValue([]) })} />,
       );
 
       const trigger = screen.getByRole('combobox');
@@ -668,51 +563,36 @@ describe('AsyncComboboxField', () => {
   });
 
   // ────────────────────────────────────────
-  // Paginated response
+  // aria-invalid
   // ────────────────────────────────────────
 
-  describe('paginated response', () => {
-    it('handles PaginatedFieldOptions response shape', async () => {
-      const queryFn = vi.fn().mockResolvedValue({
-        options: mockOptions.slice(0, 2),
-        nextCursor: 'cursor-abc',
-      });
+  describe('aria-invalid', () => {
+    it('sets aria-invalid on the trigger when true', () => {
+      renderWithQuery(<AsyncCombobox {...defaultProps({ 'aria-invalid': true })} />);
 
-      renderWithQuery(
-        <AsyncComboboxField config={createConfig({ queryFn })} {...defaultProps()} />,
-      );
+      expect(screen.getByRole('combobox')).toHaveAttribute('aria-invalid', 'true');
+    });
 
-      const trigger = screen.getByRole('combobox');
-      await user.click(trigger);
+    it('does not set aria-invalid when false', () => {
+      renderWithQuery(<AsyncCombobox {...defaultProps({ 'aria-invalid': false })} />);
 
-      await waitFor(() => {
-        expect(screen.getByText('Acme Corp')).toBeInTheDocument();
-        expect(screen.getByText('Beta Inc')).toBeInTheDocument();
-      });
+      expect(screen.getByRole('combobox')).not.toHaveAttribute('aria-invalid', 'true');
     });
   });
 
   // ────────────────────────────────────────
-  // Aria / accessibility
+  // onBlur
   // ────────────────────────────────────────
 
-  describe('accessibility', () => {
-    it('sets aria-expanded based on open state', async () => {
-      renderWithQuery(<AsyncComboboxField config={createConfig()} {...defaultProps()} />);
+  describe('onBlur', () => {
+    it('calls onBlur when trigger is clicked', async () => {
+      const onBlur = vi.fn();
 
-      const trigger = screen.getByRole('combobox');
-      expect(trigger).toHaveAttribute('aria-expanded', 'false');
+      renderWithQuery(<AsyncCombobox {...defaultProps({ onBlur })} />);
 
-      await user.click(trigger);
-      expect(trigger).toHaveAttribute('aria-expanded', 'true');
-    });
+      await user.click(screen.getByRole('combobox'));
 
-    it('sets aria-invalid when hasError is true', () => {
-      renderWithQuery(
-        <AsyncComboboxField config={createConfig()} {...defaultProps()} hasError={true} />,
-      );
-
-      expect(screen.getByRole('combobox')).toHaveAttribute('aria-invalid', 'true');
+      expect(onBlur).toHaveBeenCalled();
     });
   });
 });

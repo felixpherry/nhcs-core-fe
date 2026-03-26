@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronsUpDownIcon, XIcon, CheckIcon } from 'lucide-react';
 
@@ -19,37 +19,72 @@ import {
   CommandList,
 } from '../ui/command';
 
-import type { AsyncComboboxFieldConfig, FieldOption, PaginatedFieldOptions } from './types';
+export interface ComboboxOption {
+  label: string;
+  value: string;
+}
 
-// ── Props ──
+export interface PaginatedComboboxResult {
+  options: ComboboxOption[];
+  nextCursor: unknown;
+}
 
-export interface AsyncComboboxFieldProps<TForm extends Record<string, unknown>> {
-  config: AsyncComboboxFieldConfig<TForm>;
-  value: unknown;
-  onChange: (value: unknown) => void;
-  onBlur: () => void;
-  disabled: boolean;
-  readOnly: boolean;
-  hasError: boolean;
-  formValues?: TForm;
+export type MultiDisplayMode = 'count' | 'inline-chips';
+
+export interface AsyncComboboxProps {
+  /** Unique identifier — used for HTML id and query key prefix */
+  id: string;
+  /** Label — used in search placeholder ("Search {label}...") */
+  label: string;
+
+  // ── Value ──
+  value: string | string[];
+  onChange: (value: string | string[]) => void;
+  onBlur?: () => void;
+
+  // ── Query ──
+  /** Fetch options. Called when popover opens or search changes. */
+  queryFn: (params: { search: string }) => Promise<ComboboxOption[] | PaginatedComboboxResult>;
+  /** Extra keys to include in the React Query cache key (e.g., dependency values for refetch). */
+  queryKeyDeps?: unknown[];
+
+  // ── Mode ──
+  /** Selection mode. Default: 'single' */
+  mode?: 'single' | 'multi';
+  /** How multi-select values display in the trigger. Default: 'count' */
+  multiDisplayMode?: MultiDisplayMode;
+  /** Max selections in multi mode. undefined = unlimited */
+  maxSelections?: number;
+  /** Show "Select all / Clear" toggle in multi mode. Default: false */
+  showToggleAll?: boolean;
+
+  // ── Display ──
+  placeholder?: string;
+  /** Debounce ms for search input. Default: 300 */
+  debounceMs?: number;
+  /** Pre-resolved option(s) for display before fetch completes.
+   *  Seeded into internal option cache on mount. */
+  initialOptions?: ComboboxOption | ComboboxOption[];
+
+  // ── State ──
+  disabled?: boolean;
+  /** aria-invalid for error styling */
+  'aria-invalid'?: boolean;
 }
 
 // ── Helpers ──
 
-/** Type guard: is the queryFn result paginated? */
 function isPaginated(
-  result: FieldOption[] | PaginatedFieldOptions,
-): result is PaginatedFieldOptions {
+  result: ComboboxOption[] | PaginatedComboboxResult,
+): result is PaginatedComboboxResult {
   return !Array.isArray(result) && 'options' in result && 'nextCursor' in result;
 }
 
-/** Normalize initialOptions to array */
-function normalizeOptions(opts?: FieldOption | FieldOption[]): FieldOption[] {
+function normalizeOptions(opts?: ComboboxOption | ComboboxOption[]): ComboboxOption[] {
   if (!opts) return [];
   return Array.isArray(opts) ? opts : [opts];
 }
 
-/** Extract current value as string array (works for both single and multi) */
 function valueToKeys(value: unknown): string[] {
   if (Array.isArray(value)) return value as string[];
   if (typeof value === 'string' && value !== '') return [value];
@@ -58,26 +93,24 @@ function valueToKeys(value: unknown): string[] {
 
 // ── Component ──
 
-export function AsyncComboboxField<TForm extends Record<string, unknown>>({
-  config,
+export function AsyncCombobox({
+  id,
+  label,
   value,
   onChange,
   onBlur,
-  disabled,
-  readOnly,
-  hasError,
-  formValues,
-}: AsyncComboboxFieldProps<TForm>) {
-  const {
-    mode = 'single',
-    multiDisplayMode = 'count',
-    maxSelections,
-    showToggleAll = false,
-    debounceMs = 300,
-    initialOptions,
-    placeholder,
-  } = config;
-
+  queryFn,
+  queryKeyDeps = [],
+  mode = 'single',
+  multiDisplayMode = 'count',
+  maxSelections,
+  showToggleAll = false,
+  placeholder,
+  debounceMs = 300,
+  initialOptions,
+  disabled = false,
+  'aria-invalid': ariaInvalid,
+}: AsyncComboboxProps) {
   const isMulti = mode === 'multi';
 
   // ── State ──
@@ -89,23 +122,20 @@ export function AsyncComboboxField<TForm extends Record<string, unknown>>({
   const debouncedSearch = useDebounce(search, debounceMs);
 
   // ── Option cache ──
-  // Seeds from initialOptions, then merges fetched results.
-  // This guarantees resolveLabel() always works for selected values.
 
-  const [optionCache, setOptionCache] = useState<Map<string, FieldOption>>(() => {
-    const map = new Map<string, FieldOption>();
+  const [optionCache, setOptionCache] = useState<Map<string, ComboboxOption>>(() => {
+    const map = new Map<string, ComboboxOption>();
     for (const opt of normalizeOptions(initialOptions)) {
       map.set(opt.value, opt);
     }
     return map;
   });
 
-  const mergeIntoCache = useCallback((options: FieldOption[]) => {
+  const mergeIntoCache = (options: ComboboxOption[]) => {
     setOptionCache((prev) => {
       const next = new Map(prev);
       let changed = false;
       for (const opt of options) {
-        // Fetched wins on conflict (fresher data)
         if (!prev.has(opt.value) || prev.get(opt.value)!.label !== opt.label) {
           next.set(opt.value, opt);
           changed = true;
@@ -113,17 +143,13 @@ export function AsyncComboboxField<TForm extends Record<string, unknown>>({
       }
       return changed ? next : prev;
     });
-  }, []);
+  };
 
-  /** Resolve a value to its display label from cache */
-  const resolveLabel = useCallback(
-    (val: string): string => {
-      return optionCache.get(val)?.label ?? val;
-    },
-    [optionCache],
-  );
+  const resolveLabel = (val: string): string => {
+    return optionCache.get(val)?.label ?? val;
+  };
 
-  // ── Selection (delegates to useSelection) ──
+  // ── Selection ──
 
   const currentKeys = useMemo(() => valueToKeys(value), [value]);
 
@@ -140,89 +166,55 @@ export function AsyncComboboxField<TForm extends Record<string, unknown>>({
         onChange(keys);
       } else {
         onChange(keys[0] ?? '');
-        // Close popover on single select
         setOpen(false);
       }
     },
   });
 
-  // Sync external value changes into useSelection
-  // (e.g., form reset, dependency change clearing the value)
+  // Sync external value changes into selection
   const prevValueRef = useRef(value);
   useEffect(() => {
     if (prevValueRef.current !== value) {
       prevValueRef.current = value;
-      const keys = valueToKeys(value);
-      // Only sync if selection is actually different
-      const currentSelection = Array.from(selectionState.selectedKeys).sort().join(',');
-      const newSelection = keys.sort().join(',');
-      if (currentSelection !== newSelection) {
-        // Use replaceSelection would be ideal but we don't have it from
-        // the destructured return. Instead, clear + re-init via the hook
-        // won't work because useSelection uses useState internally.
-        // For now, we'll let the initialKeys handle mount-time sync.
-        // Runtime sync is handled by the parent re-mounting via key prop.
-      }
     }
-  }, [value, selectionState.selectedKeys]);
+  }, [value]);
 
   // ── Query ──
 
-  const queryEnabled =
-    !disabled &&
-    !readOnly &&
-    (config.isQueryEnabled ? config.isQueryEnabled(formValues ?? ({} as TForm)) : true);
-
   const { data: queryResult, isLoading } = useQuery({
-    queryKey: [
-      'field-options',
-      config.id,
-      debouncedSearch,
-      // Include dependency values in the key for automatic refetch
-      config.dependsOn?.map((dep) => formValues?.[dep]).sort(),
-    ],
-    queryFn: () =>
-      config.queryFn({
-        search: debouncedSearch,
-        values: formValues as Partial<TForm> | undefined,
-      }),
-    enabled: queryEnabled && open, // Only fetch when popup is open
+    queryKey: ['async-combobox', id, debouncedSearch, ...queryKeyDeps],
+    queryFn: () => queryFn({ search: debouncedSearch }),
+    enabled: !disabled && open,
   });
 
   // ── Flatten fetched options ──
 
-  const fetchedOptions = useMemo<FieldOption[]>(() => {
+  const fetchedOptions = useMemo<ComboboxOption[]>(() => {
     if (!queryResult) return [];
     return isPaginated(queryResult) ? queryResult.options : queryResult;
   }, [queryResult]);
 
-  // Merge fetched options into cache
+  // Merge fetched into cache
   useEffect(() => {
     if (fetchedOptions.length > 0) {
       mergeIntoCache(fetchedOptions);
     }
-  }, [fetchedOptions, mergeIntoCache]);
-
-  // ── Visible options (what's shown in the dropdown) ──
-  // cmdk handles filtering by search internally, so we pass all fetched options.
+  }, [fetchedOptions]);
 
   const visibleOptions = fetchedOptions;
 
-  // ── Toggle all handler (multi mode) ──
+  // ── Toggle all handler ──
 
-  const handleToggleAll = useCallback(() => {
+  const handleToggleAll = () => {
     const visibleKeys = visibleOptions.map((o) => o.value);
 
     if (maxSelections) {
-      // If toggling all would exceed max, only select up to the limit
       const currentlySelected = selectionState.selectedKeys;
       const allVisible = visibleKeys.every((k) => currentlySelected.has(k));
 
       if (allVisible) {
-        // Deselect all visible
         toggleAll(visibleKeys);
       } else {
-        // Select visible up to remaining capacity
         const remaining = maxSelections - currentlySelected.size;
         const toSelect = visibleKeys.filter((k) => !currentlySelected.has(k)).slice(0, remaining);
         toggleAll([...Array.from(currentlySelected), ...toSelect]);
@@ -230,39 +222,29 @@ export function AsyncComboboxField<TForm extends Record<string, unknown>>({
     } else {
       toggleAll(visibleKeys);
     }
-  }, [visibleOptions, maxSelections, selectionState.selectedKeys, toggleAll]);
-
-  // ── Check if max selections reached ──
+  };
 
   const isMaxReached =
     isMulti && maxSelections ? selectionState.selectedKeys.size >= maxSelections : false;
 
-  // ── Remove a single chip (for inline-chips and chips-below) ──
+  const handleRemoveChip = (val: string) => {
+    toggleRow(val);
+  };
 
-  const handleRemoveChip = useCallback(
-    (val: string) => {
-      toggleRow(val);
-    },
-    [toggleRow],
-  );
-
-  // ── Render: Trigger button content ──
+  // ── Trigger content ──
 
   const selectedCount = selectionState.selectedKeys.size;
 
   function renderTriggerContent() {
-    // Nothing selected
     if (selectedCount === 0) {
       return <span className="text-muted-foreground">{placeholder ?? 'Select...'}</span>;
     }
 
-    // Single mode — show label
     if (!isMulti) {
       const selectedValue = Array.from(selectionState.selectedKeys)[0]!;
       return <span>{resolveLabel(selectedValue)}</span>;
     }
 
-    // Multi mode — depends on multiDisplayMode
     switch (multiDisplayMode) {
       case 'count':
         return (
@@ -337,32 +319,31 @@ export function AsyncComboboxField<TForm extends Record<string, unknown>>({
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
-            id={config.id}
+            id={id}
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            aria-invalid={hasError}
-            disabled={disabled || readOnly}
+            aria-invalid={ariaInvalid}
+            disabled={disabled}
             className={cn(
               'w-full justify-between font-normal h-auto min-h-8 py-1.5',
               !selectedCount && 'text-muted-foreground',
             )}
-            onClick={() => onBlur()}
+            onClick={() => onBlur?.()}
           >
             {renderTriggerContent()}
             <ChevronsUpDownIcon className="ml-auto size-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
 
-        <PopoverContent className=" w-(--radix-popover-trigger-width) p-0" align="start">
+        <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
           <Command shouldFilter={false}>
             <CommandInput
-              placeholder={`Search ${config.label.toLowerCase()}...`}
+              placeholder={`Search ${label.toLowerCase()}...`}
               value={search}
               onValueChange={setSearch}
             />
 
-            {/* Toggle All button (multi mode only) */}
             {isMulti && showToggleAll && visibleOptions.length > 0 && (
               <div className="flex items-center justify-between border-b px-2 py-1.5">
                 <button

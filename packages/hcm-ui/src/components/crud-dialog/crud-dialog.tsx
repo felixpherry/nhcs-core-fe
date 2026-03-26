@@ -11,10 +11,12 @@ import {
 } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { ConfirmDialog } from '../confirm-dialog/confirm-dialog';
-import type { FormMode } from '../../hooks/use-crud-form';
-import { useCrudContext } from '../../contexts/form-context';
+import type { FormMode, UseCrudFormReturn } from '../../hooks/use-crud-form';
 
-export interface CrudDialogProps {
+export interface CrudDialogProps<TForm extends Record<string, unknown>> {
+  crud: UseCrudFormReturn<TForm>;
+  onSubmit: () => void;
+  isSubmitting?: boolean;
   entityName?: string;
   title?: string;
   description?: string;
@@ -28,8 +30,6 @@ export interface CrudDialogProps {
   }) => ReactNode;
   children: ReactNode;
 }
-
-// ── Helpers ──
 
 function getTitle(mode: FormMode, entityName?: string, customTitle?: string): string {
   if (customTitle) return customTitle;
@@ -55,10 +55,11 @@ function getSubmitLabel(mode: FormMode): string {
   }
 }
 
-// ── Component ──
-
-export function CrudDialog(props: CrudDialogProps) {
+export function CrudDialog<TForm extends Record<string, unknown>>(props: CrudDialogProps<TForm>) {
   const {
+    crud,
+    onSubmit,
+    isSubmitting = false,
     entityName,
     title,
     description,
@@ -66,8 +67,6 @@ export function CrudDialog(props: CrudDialogProps) {
     renderFooter,
     children,
   } = props;
-
-  const { crud, onSubmit, isSubmitting } = useCrudContext();
 
   const defaultFooter =
     crud.mode === 'view' ? (
