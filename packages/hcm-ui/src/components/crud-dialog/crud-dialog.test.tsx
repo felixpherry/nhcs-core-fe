@@ -4,23 +4,16 @@ import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import type { CrudDialogProps } from './crud-dialog';
 import { CrudDialog } from './crud-dialog';
-import type { UseCrudFormReturn, FormMode } from '../../hooks/use-crud-dialog';
+import type { UseCrudDialogReturn, FormMode } from '../../hooks/use-crud-dialog';
 
-interface TestForm extends Record<string, unknown> {
-  name: string;
-}
-
-function mockCrud(overrides?: Partial<UseCrudFormReturn<TestForm>>): UseCrudFormReturn<TestForm> {
+function mockCrud(overrides?: Partial<UseCrudDialogReturn<unknown>>): UseCrudDialogReturn<unknown> {
   return {
     isOpen: true,
     mode: 'create',
-    values: { name: '' },
     editId: null,
-    isDirty: false,
+    editData: null,
     isLoading: false,
     isCloseBlocked: false,
-    setFieldValue: vi.fn(),
-    setValues: vi.fn(),
     openCreate: vi.fn(),
     openEdit: vi.fn(),
     openEditById: vi.fn(),
@@ -28,25 +21,27 @@ function mockCrud(overrides?: Partial<UseCrudFormReturn<TestForm>>): UseCrudForm
     requestClose: vi.fn(),
     confirmDiscard: vi.fn(),
     cancelDiscard: vi.fn(),
-    reset: vi.fn(),
+    syncIsDirty: vi.fn(),
     ...overrides,
   };
 }
 
 function renderCrudDialog(opts?: {
-  crudOverrides?: Partial<UseCrudFormReturn<TestForm>>;
+  crudOverrides?: Partial<UseCrudDialogReturn<unknown>>;
   onSubmit?: () => void;
   isSubmitting?: boolean;
+  isDirty?: boolean;
   entityName?: string;
   title?: string;
   description?: string;
-  renderFooter?: CrudDialogProps<TestForm>['renderFooter'];
+  renderFooter?: CrudDialogProps['renderFooter'];
   children?: ReactNode;
 }) {
   const {
     crudOverrides,
     onSubmit = vi.fn(),
     isSubmitting = false,
+    isDirty = false,
     entityName = 'Record',
     title,
     description,
@@ -61,6 +56,7 @@ function renderCrudDialog(opts?: {
       crud={crud}
       onSubmit={onSubmit}
       isSubmitting={isSubmitting}
+      isDirty={isDirty}
       entityName={entityName}
       title={title}
       description={description}
@@ -233,7 +229,8 @@ describe('CrudDialog', () => {
       >(() => <div>Custom</div>);
 
       renderCrudDialog({
-        crudOverrides: { mode: 'edit', isDirty: true },
+        crudOverrides: { mode: 'edit' },
+        isDirty: true,
         isSubmitting: true,
         renderFooter,
       });
