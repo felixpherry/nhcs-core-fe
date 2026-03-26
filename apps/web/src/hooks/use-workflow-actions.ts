@@ -1,7 +1,6 @@
 'use client';
 
 import { useReducer, useRef, useEffect } from 'react';
-import type { FormFieldConfig } from '../components/form-field/types';
 
 // ══════════════════════════════════════════════════════════════
 // Public API: Types & Constants
@@ -20,7 +19,7 @@ export interface ActionConfirmStep {
 export interface ActionInputStep {
   title: string;
   description?: string;
-  fields: FormFieldConfig[];
+  fields: Record<string, unknown>[];
   submitLabel?: string;
   cancelLabel?: string;
 }
