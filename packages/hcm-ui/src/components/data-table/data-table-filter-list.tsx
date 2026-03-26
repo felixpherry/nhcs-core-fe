@@ -12,18 +12,40 @@ import {
 import { parseAsStringEnum, useQueryState } from 'nuqs';
 import * as React from 'react';
 
-import { DataTableRangeFilter } from 'src/components/data-table/data-table-range-filter';
-import { Badge } from 'src/components/ui/badge';
-import { Button } from 'src/components/ui/button';
-import { Calendar } from 'src/components/ui/calendar';
+import type { ExtendedColumnFilter, FilterOperator, JoinOperator } from 'src/types/data-table';
+import { DataTableRangeFilter } from './data-table-range-filter';
 import {
+  Badge,
+  Button,
   Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
-} from 'src/components/ui/command';
+  Input,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui';
+import { getFiltersStateParser } from '#/lib/parsers';
+import { useDebouncedCallback } from '#/hooks/use-debounced-callback';
+import { getDefaultFilterOperator, getFilterOperators } from '#/lib/data-table';
+import { generateId } from '#/lib/id';
+import {
+  Sortable,
+  SortableContent,
+  SortableItem,
+  SortableItemHandle,
+  SortableOverlay,
+} from '../ui/sortable';
+import { cn } from '#/lib/utils';
+import { dataTableConfig } from '#/config/data-table';
 import {
   Faceted,
   FacetedBadgeList,
@@ -34,31 +56,9 @@ import {
   FacetedItem,
   FacetedList,
   FacetedTrigger,
-} from 'src/components/ui/faceted';
-import { Input } from 'src/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from 'src/components/ui/popover';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from 'src/components/ui/select';
-import {
-  Sortable,
-  SortableContent,
-  SortableItem,
-  SortableItemHandle,
-  SortableOverlay,
-} from 'src/components/ui/sortable';
-import { dataTableConfig } from 'src/config/data-table';
-import { useDebouncedCallback } from 'src/hooks/use-debounced-callback';
-import { getDefaultFilterOperator, getFilterOperators } from 'src/lib/data-table';
-import { formatDate } from 'src/lib/format';
-import { generateId } from 'src/lib/id';
-import { getFiltersStateParser } from 'src/lib/parsers';
-import { cn } from 'src/lib/utils';
-import type { ExtendedColumnFilter, FilterOperator, JoinOperator } from 'src/types/data-table';
+} from '../ui/faceted';
+import { formatDate } from '#/lib/format';
+import { Calendar } from '../ui/calendar';
 
 const DEBOUNCE_MS = 300;
 const THROTTLE_MS = 50;
@@ -194,7 +194,11 @@ export function DataTableFilterList<TData>({
   );
 
   return (
-    <Sortable value={filters} onValueChange={setFilters} getItemValue={(item) => item.filterId}>
+    <Sortable
+      value={filters}
+      onValueChange={setFilters}
+      getItemValue={(item: { filterId: unknown }) => item.filterId}
+    >
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -209,7 +213,7 @@ export function DataTableFilterList<TData>({
             {filters.length > 0 && (
               <Badge
                 variant="secondary"
-                className="h-[18.24px] rounded-[3.2px] px-[5.12px] font-mono font-normal text-[10.4px]"
+                className="h-[18.24px] rounded-md px-[5.12px] font-mono font-normal text-[10.4px]"
               >
                 {filters.length}
               </Badge>
@@ -219,7 +223,7 @@ export function DataTableFilterList<TData>({
         <PopoverContent
           aria-describedby={descriptionId}
           aria-labelledby={labelId}
-          className="flex w-full max-w-(--radix-popover-content-available-width) flex-col gap-3.5 p-4 sm:min-w-[380px]"
+          className="flex w-full max-w-(--radix-popover-content-available-width) flex-col gap-3.5 p-4 sm:min-w-95"
           {...props}
         >
           <div className="flex flex-col gap-1">
@@ -237,7 +241,7 @@ export function DataTableFilterList<TData>({
           </div>
           {filters.length > 0 ? (
             <SortableContent asChild>
-              <div role="list" className="flex max-h-[300px] flex-col gap-2 overflow-y-auto p-1">
+              <div role="list" className="flex max-h-75 flex-col gap-2 overflow-y-auto p-1">
                 {filters.map((filter, index) => (
                   <DataTableFilterItem<TData>
                     key={filter.filterId}
@@ -268,7 +272,7 @@ export function DataTableFilterList<TData>({
       </Popover>
       <SortableOverlay>
         <div className="flex items-center gap-2">
-          <div className="h-8 min-w-[72px] rounded-sm bg-primary/10" />
+          <div className="h-8 min-w-18 rounded-sm bg-primary/10" />
           <div className="h-8 w-32 rounded-sm bg-primary/10" />
           <div className="h-8 w-32 rounded-sm bg-primary/10" />
           <div className="h-8 min-w-36 flex-1 rounded-sm bg-primary/10" />
@@ -347,7 +351,7 @@ function DataTableFilterItem<TData>({
         className="flex items-center gap-2"
         onKeyDown={onItemKeyDown}
       >
-        <div className="min-w-[72px] text-center">
+        <div className="min-w-18 text-center">
           {index === 0 ? (
             <span className="text-muted-foreground text-sm">Where</span>
           ) : index === 1 ? (
@@ -635,7 +639,7 @@ function onFilterInputRender<TData>({
               />
             </Button>
           </FacetedTrigger>
-          <FacetedContent id={inputListboxId} className="w-[200px]">
+          <FacetedContent id={inputListboxId} className="w-50">
             <FacetedInput
               aria-label={`Search ${columnMeta?.label} options`}
               placeholder={columnMeta?.placeholder ?? 'Search options...'}

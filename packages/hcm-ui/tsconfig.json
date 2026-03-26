@@ -3,7 +3,10 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "rootDir": "./src",
-    "baseUrl": "."
+    "baseUrl": ".",
+    "paths": {
+      "#/*": ["./src/*"]
+    }
   },
   "include": ["src"]
 }

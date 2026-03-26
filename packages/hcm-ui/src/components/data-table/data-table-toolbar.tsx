@@ -4,13 +4,13 @@ import type { Column, Table } from '@tanstack/react-table';
 import { X } from 'lucide-react';
 import * as React from 'react';
 
-import { DataTableDateFilter } from 'src/components/data-table/data-table-date-filter';
-import { DataTableFacetedFilter } from 'src/components/data-table/data-table-faceted-filter';
-import { DataTableSliderFilter } from 'src/components/data-table/data-table-slider-filter';
-import { DataTableViewOptions } from 'src/components/data-table/data-table-view-options';
-import { Button } from 'src/components/ui/button';
-import { Input } from 'src/components/ui/input';
-import { cn } from 'src/lib/utils';
+import { DataTableDateFilter } from '../data-table/data-table-date-filter';
+import { DataTableFacetedFilter } from '../data-table/data-table-faceted-filter';
+import { DataTableSliderFilter } from '../data-table/data-table-slider-filter';
+import { DataTableViewOptions } from '../data-table/data-table-view-options';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { cn } from '#/lib/utils';
 
 interface DataTableToolbarProps<TData> extends React.ComponentProps<'div'> {
   table: Table<TData>;
@@ -95,7 +95,7 @@ function DataTableToolbarFilter<TData>({ column }: DataTableToolbarFilterProps<T
                 placeholder={columnMeta.placeholder ?? columnMeta.label}
                 value={(column.getFilterValue() as string) ?? ''}
                 onChange={(event) => column.setFilterValue(event.target.value)}
-                className={cn('h-8 w-[120px]', columnMeta.unit && 'pr-8')}
+                className={cn('h-8 w-30', columnMeta.unit && 'pr-8')}
               />
               {columnMeta.unit && (
                 <span className="absolute top-0 right-0 bottom-0 flex items-center rounded-r-md bg-accent px-2 text-muted-foreground text-sm">

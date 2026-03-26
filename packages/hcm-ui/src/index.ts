@@ -113,3 +113,23 @@ export {
   CrudFormBridge,
   type CrudFormBridgeProps,
 } from './components/form';
+
+export { DataTable } from './components/data-table/data-table';
+export { DataTableAdvancedToolbar } from './components/data-table/data-table-advanced-toolbar';
+export { DataTableColumnHeader } from './components/data-table/data-table-column-header';
+export { DataTableFilterList } from './components/data-table/data-table-filter-list';
+export { DataTablePagination } from './components/data-table/data-table-pagination';
+export { DataTableSkeleton } from './components/data-table/data-table-skeleton';
+export { DataTableSortList } from './components/data-table/data-table-sort-list';
+export { DataTableToolbar } from './components/data-table/data-table-toolbar';
+export { DataTableViewOptions } from './components/data-table/data-table-view-options';
+export { useDataTable } from './hooks/use-data-table';
+export { getColumnPinningStyle } from './lib/data-table';
+export { dataTableConfig } from './config/data-table';
+export type {
+  ExtendedColumnSort,
+  ExtendedColumnFilter,
+  FilterOperator,
+  FilterVariant,
+  QueryKeys,
+} from './types/data-table';

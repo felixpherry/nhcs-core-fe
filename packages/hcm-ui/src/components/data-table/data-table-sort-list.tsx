@@ -4,8 +4,8 @@ import type { ColumnSort, SortDirection, Table } from '@tanstack/react-table';
 import { ArrowDownUp, ChevronsUpDown, GripVertical, Trash2 } from 'lucide-react';
 import * as React from 'react';
 
-import { Badge } from 'src/components/ui/badge';
-import { Button } from 'src/components/ui/button';
+import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
 import {
   Command,
   CommandEmpty,
@@ -13,24 +13,18 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from 'src/components/ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from 'src/components/ui/popover';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from 'src/components/ui/select';
+} from '../ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import {
   Sortable,
   SortableContent,
   SortableItem,
   SortableItemHandle,
   SortableOverlay,
-} from 'src/components/ui/sortable';
-import { dataTableConfig } from 'src/config/data-table';
-import { cn } from 'src/lib/utils';
+} from '../ui/sortable';
+import { dataTableConfig } from '#/config/data-table';
+import { cn } from '#/lib/utils';
 
 const SORT_SHORTCUT_KEY = 's';
 const REMOVE_SORT_SHORTCUTS = ['backspace', 'delete'];
@@ -140,7 +134,11 @@ export function DataTableSortList<TData>({
   );
 
   return (
-    <Sortable value={sorting} onValueChange={onSortingChange} getItemValue={(item) => item.id}>
+    <Sortable
+      value={sorting}
+      onValueChange={onSortingChange}
+      getItemValue={(item: { id: unknown }) => item.id}
+    >
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -155,7 +153,7 @@ export function DataTableSortList<TData>({
             {sorting.length > 0 && (
               <Badge
                 variant="secondary"
-                className="h-[18.24px] rounded-[3.2px] px-[5.12px] font-mono font-normal text-[10.4px]"
+                className="h-[18.24px] rounded-md px-[5.12px] font-mono font-normal text-[10.4px]"
               >
                 {sorting.length}
               </Badge>
@@ -165,7 +163,7 @@ export function DataTableSortList<TData>({
         <PopoverContent
           aria-labelledby={labelId}
           aria-describedby={descriptionId}
-          className="flex w-full max-w-(--radix-popover-content-available-width) flex-col gap-3.5 p-4 sm:min-w-[380px]"
+          className="flex w-full max-w-(--radix-popover-content-available-width) flex-col gap-3.5 p-4 sm:min-w-95"
           {...props}
         >
           <div className="flex flex-col gap-1">
@@ -183,7 +181,7 @@ export function DataTableSortList<TData>({
           </div>
           {sorting.length > 0 && (
             <SortableContent asChild>
-              <div role="list" className="flex max-h-[300px] flex-col gap-2 overflow-y-auto p-1">
+              <div role="list" className="flex max-h-75 flex-col gap-2 overflow-y-auto p-1">
                 {sorting.map((sort) => (
                   <DataTableSortItem
                     key={sort.id}
@@ -218,7 +216,7 @@ export function DataTableSortList<TData>({
       </Popover>
       <SortableOverlay>
         <div className="flex items-center gap-2">
-          <div className="h-8 w-[180px] rounded-sm bg-primary/10" />
+          <div className="h-8 w-45 rounded-sm bg-primary/10" />
           <div className="h-8 w-24 rounded-sm bg-primary/10" />
           <div className="size-8 shrink-0 rounded-sm bg-primary/10" />
           <div className="size-8 shrink-0 rounded-sm bg-primary/10" />

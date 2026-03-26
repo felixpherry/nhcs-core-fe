@@ -1,12 +1,12 @@
 'use client';
 
+import type { Option } from '#/types/data-table';
 import type { Column } from '@tanstack/react-table';
 import { Check, PlusCircle, XCircle } from 'lucide-react';
 import * as React from 'react';
-
-import { Badge } from 'src/components/ui/badge';
-import { Button } from 'src/components/ui/button';
 import {
+  Badge,
+  Button,
   Command,
   CommandEmpty,
   CommandGroup,
@@ -14,11 +14,12 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-} from 'src/components/ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from 'src/components/ui/popover';
-import { Separator } from 'src/components/ui/separator';
-import { cn } from 'src/lib/utils';
-import type { Option } from 'src/components/data-table/data-table';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Separator,
+} from '../ui';
+import { cn } from '#/lib/utils';
 
 interface DataTableFacetedFilterProps<TData, TValue> {
   column?: Column<TData, TValue>;
@@ -122,7 +123,7 @@ export function DataTableFacetedFilter<TData, TValue>({
           <CommandInput placeholder={title} />
           <CommandList className="max-h-full">
             <CommandEmpty>No results found.</CommandEmpty>
-            <CommandGroup className="max-h-[300px] scroll-py-1 overflow-y-auto overflow-x-hidden">
+            <CommandGroup className="max-h-75 scroll-py-1 overflow-y-auto overflow-x-hidden">
               {options.map((option) => {
                 const isSelected = selectedValues.has(option.value);
 

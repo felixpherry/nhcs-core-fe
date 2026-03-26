@@ -1,6 +1,6 @@
+import type { DataTableConfig } from '#/config/data-table';
+import type { FilterItemSchema } from '#/lib/parsers';
 import type { ColumnSort, Row, RowData } from '@tanstack/react-table';
-import type { DataTableConfig } from 'src/components/data-table/data-table';
-import type { FilterItemSchema } from 'src/lib/parsers';
 
 declare module '@tanstack/react-table' {
   // biome-ignore lint/correctness/noUnusedVariables: TData is used in the TableMeta interface

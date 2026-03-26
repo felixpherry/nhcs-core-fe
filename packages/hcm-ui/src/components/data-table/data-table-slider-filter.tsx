@@ -1,15 +1,11 @@
 'use client';
 
+import { cn } from '#/lib/utils';
 import type { Column } from '@tanstack/react-table';
 import { PlusCircle, XCircle } from 'lucide-react';
 import * as React from 'react';
-import { Button } from 'src/components/ui/button';
-import { Input } from 'src/components/ui/input';
-import { Label } from 'src/components/ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from 'src/components/ui/popover';
-import { Separator } from 'src/components/ui/separator';
-import { Slider } from 'src/components/ui/slider';
-import { cn } from 'src/lib/utils';
+import { Button, Input, Label, Popover, PopoverContent, PopoverTrigger, Separator } from '../ui';
+import { Slider } from '../ui/slider';
 
 interface Range {
   min: number;
