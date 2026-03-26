@@ -11,7 +11,7 @@ import {
 } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { ConfirmDialog } from '../confirm-dialog/confirm-dialog';
-import type { FormMode, UseCrudFormReturn } from '../../hooks/use-crud-form';
+import type { FormMode, UseCrudFormReturn } from '../../hooks/use-crud-dialog';
 
 export interface CrudDialogProps<TForm extends Record<string, unknown>> {
   crud: UseCrudFormReturn<TForm>;

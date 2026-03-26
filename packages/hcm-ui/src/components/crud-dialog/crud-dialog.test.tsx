@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import type { CrudDialogProps } from './crud-dialog';
 import { CrudDialog } from './crud-dialog';
-import type { UseCrudFormReturn, FormMode } from '../../hooks/use-crud-form';
+import type { UseCrudFormReturn, FormMode } from '../../hooks/use-crud-dialog';
 
 interface TestForm extends Record<string, unknown> {
   name: string;

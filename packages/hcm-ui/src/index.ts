@@ -16,17 +16,17 @@ export { useFilter, type UseFilterOptions, type UseFilterReturn } from './hooks/
 // UI primitives
 export * from './components/ui';
 
-// CRUD form hook
+// CRUD dialog hook
 export {
-  useCrudForm,
-  CrudFormActionTypes,
-  type UseCrudFormOptions,
-  type UseCrudFormReturn,
+  useCrudDialog,
+  CrudDialogActionTypes,
+  type UseCrudDialogOptions,
+  type UseCrudDialogReturn,
   type FormMode,
-  type CrudFormState,
-  type CrudFormAction,
-  type CrudFormActionType,
-} from './hooks/use-crud-form';
+  type CrudDialogState,
+  type CrudDialogAction,
+  type CrudDialogActionType,
+} from './hooks/use-crud-dialog';
 
 // CRUD dialog
 export { CrudDialog, type CrudDialogProps } from './components/crud-dialog';
