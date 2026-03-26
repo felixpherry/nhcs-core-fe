@@ -5,6 +5,7 @@ import { Input } from '@/components/ui';
 import type { Label } from '@/components/ui';
 import { BaseField } from './base-field';
 import React, { useId } from 'react';
+import { getErrorMessages } from '../utils';
 
 interface InputFieldProps extends React.ComponentProps<typeof Input> {
   labelProps: React.ComponentProps<typeof Label>;
@@ -20,9 +21,7 @@ export function InputField({
   ...props
 }: InputFieldProps) {
   const field = useFieldContext<string>();
-  const errors = field.state.meta.isTouched
-    ? field.state.meta.errors.map((e) => (typeof e === 'string' ? e : e.message))
-    : [];
+  const errors = getErrorMessages(field);
 
   const fallbackId = useId();
   const id = props.id ?? fallbackId;

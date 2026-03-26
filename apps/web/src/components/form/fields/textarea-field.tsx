@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui';
 import type { Label } from '@/components/ui';
 import { BaseField } from './base-field';
 import { useId, type ComponentProps } from 'react';
+import { getErrorMessages } from '../utils';
 
 interface TextareaFieldProps extends ComponentProps<typeof Textarea> {
   labelProps: React.ComponentProps<typeof Label>;
@@ -20,9 +21,7 @@ export function TextareaField({
   ...props
 }: TextareaFieldProps) {
   const field = useFieldContext<string>();
-  const errors = field.state.meta.isTouched
-    ? field.state.meta.errors.map((e) => (typeof e === 'string' ? e : e.message))
-    : [];
+  const errors = getErrorMessages(field);
   const fallbackId = useId();
   const id = props.id ?? fallbackId;
 

@@ -11,6 +11,7 @@ const schema = z.object({
     .max(30, 'Max 30 characters')
     .regex(/^\S+$/, 'No spaces allowed'),
   notes: z.string().min(10, 'At least 10 characters'),
+  status: z.string().min(1, 'Status is required'),
 });
 
 export default function TestFormPage() {
@@ -19,6 +20,7 @@ export default function TestFormPage() {
       name: '',
       code: '',
       notes: '',
+      status: '',
     },
     validators: {
       onBlur: schema,
@@ -59,6 +61,21 @@ export default function TestFormPage() {
               required
               placeholder="Enter notes (min 10 chars)"
               rows={4}
+            />
+          )}
+        </form.AppField>
+
+        <form.AppField name="status">
+          {(field) => (
+            <field.SelectField
+              labelProps={{ children: 'Status' }}
+              required
+              placeholder="Select status"
+              options={[
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' },
+                { value: 'pending', label: 'Pending' },
+              ]}
             />
           )}
         </form.AppField>
