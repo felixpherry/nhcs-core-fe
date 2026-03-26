@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Checkbox } from '../ui/checkbox';
 import type { UseDataTableReturn } from '../../hooks/use-data-table';
@@ -8,30 +8,34 @@ import type { ColumnConfig } from './column-types';
 import { StatusBadgeCell, DateCell, NumberCell } from './cell-renderers';
 import { cn } from '../../lib/utils';
 
-// ── Props ──
-
-export interface DataTableProps<TData> {
+interface DataTableContextValue<TData> {
   table: UseDataTableReturn<TData>;
-  children?: ReactNode;
   onRowClick?: (row: TData) => void;
 }
 
-// ── Render cell value ──
+const DataTableContext = createContext<DataTableContextValue<unknown> | null>(null);
+
+function useDataTableContext<TData>(): DataTableContextValue<TData> {
+  const ctx = useContext(DataTableContext);
+  if (!ctx) {
+    throw new Error(
+      'DataTable sub-components (DataTableContent, DataTablePagination) must be used within <DataTable>',
+    );
+  }
+  return ctx as DataTableContextValue<TData>;
+}
 
 function renderCellValue<TData>(col: ColumnConfig<TData>, row: TData): ReactNode {
-  // Get the raw value
   const value = col.accessorFn
     ? col.accessorFn(row)
     : col.accessorKey
       ? (row as Record<string, unknown>)[col.accessorKey]
       : null;
 
-  // Custom render function
   if (typeof col.cell === 'function') {
     return col.cell(value, row);
   }
 
-  // Built-in cell types
   switch (col.cell) {
     case 'status-badge':
       return <StatusBadgeCell value={value} />;
@@ -40,14 +44,16 @@ function renderCellValue<TData>(col: ColumnConfig<TData>, row: TData): ReactNode
     case 'number':
       return <NumberCell value={value} />;
     case 'row-actions':
-      return null; // Handled externally via custom render
+      return null;
     case 'text':
     default:
       return <span>{value !== null && value !== undefined ? String(value) : '-'}</span>;
   }
 }
 
-// ── Align class helper ──
+// ══════════════════════════════════════════════════════════════
+// Helpers
+// ══════════════════════════════════════════════════════════════
 
 function getAlignClass(align?: 'left' | 'center' | 'right'): string {
   switch (align) {
@@ -59,8 +65,6 @@ function getAlignClass(align?: 'left' | 'center' | 'right'): string {
       return '';
   }
 }
-
-// ── Sort indicator ──
 
 function SortIndicator({
   columnId,
@@ -82,28 +86,29 @@ function SortIndicator({
   );
 }
 
-// ── Main component ──
+export interface DataTableProps<TData> {
+  table: UseDataTableReturn<TData>;
+  onRowClick?: (row: TData) => void;
+  children?: ReactNode;
+}
 
 export function DataTable<TData>(props: DataTableProps<TData>) {
-  const { table, children, onRowClick } = props;
+  const { table, onRowClick, children } = props;
+
+  const ctx: DataTableContextValue<unknown> = {
+    table: table as UseDataTableReturn<unknown>,
+    onRowClick: onRowClick as ((row: unknown) => void) | undefined,
+  };
 
   return (
-    <div className="space-y-4">
-      {children}
-      <DataTableContent table={table} onRowClick={onRowClick} />
-    </div>
+    <DataTableContext.Provider value={ctx}>
+      <div className="space-y-4">{children}</div>
+    </DataTableContext.Provider>
   );
 }
 
-// ── Table content ──
-
-export function DataTableContent<TData>({
-  table,
-  onRowClick,
-}: {
-  table: UseDataTableReturn<TData>;
-  onRowClick?: (row: TData) => void;
-}) {
+export function DataTableContent<TData>() {
+  const { table, onRowClick } = useDataTableContext<TData>();
   const { visibleColumns, data, isLoading, selection, getRowId, sorting } = table;
 
   if (isLoading) {
@@ -198,39 +203,9 @@ export function DataTableContent<TData>({
   );
 }
 
-// ── Toolbar ──
+export function DataTablePagination() {
+  const { table } = useDataTableContext();
 
-export function DataTableToolbar({ children }: { children: ReactNode }) {
-  return <div className="flex items-center justify-between gap-4">{children}</div>;
-}
-
-export function DataTableSearch({
-  value,
-  onChange,
-  placeholder = 'Search...',
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-}) {
-  return (
-    <input
-      type="text"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="flex h-9 w-full max-w-sm rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-    />
-  );
-}
-
-export function DataTableActions({ children }: { children: ReactNode }) {
-  return <div className="flex items-center gap-2">{children}</div>;
-}
-
-// ── Pagination ──
-
-export function DataTablePagination<TData>({ table }: { table: UseDataTableReturn<TData> }) {
   return (
     <div className="flex items-center justify-between">
       <div className="text-sm text-muted-foreground">
@@ -266,7 +241,7 @@ export function DataTablePagination<TData>({ table }: { table: UseDataTableRetur
             disabled={!table.canPreviousPage}
             className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input text-sm disabled:opacity-50"
           >
-            \u2190
+            ←
           </button>
           <span className="text-sm px-2">
             {table.page} / {table.pageCount}
@@ -276,10 +251,42 @@ export function DataTablePagination<TData>({ table }: { table: UseDataTableRetur
             disabled={!table.canNextPage}
             className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input text-sm disabled:opacity-50"
           >
-            \u2192
+            →
           </button>
         </div>
       </div>
     </div>
   );
+}
+
+// ══════════════════════════════════════════════════════════════
+// Layout components (unchanged — no state needed)
+// ══════════════════════════════════════════════════════════════
+
+export function DataTableToolbar({ children }: { children: ReactNode }) {
+  return <div className="flex items-center justify-between gap-4">{children}</div>;
+}
+
+export function DataTableSearch({
+  value,
+  onChange,
+  placeholder = 'Search...',
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="flex h-9 w-full max-w-sm rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+    />
+  );
+}
+
+export function DataTableActions({ children }: { children: ReactNode }) {
+  return <div className="flex items-center gap-2">{children}</div>;
 }

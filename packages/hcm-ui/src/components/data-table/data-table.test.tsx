@@ -1,9 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import {
   DataTable,
+  DataTableContent,
   DataTablePagination,
   DataTableToolbar,
   DataTableSearch,
@@ -31,7 +32,6 @@ const SAMPLE_DATA: Company[] = [
   { companyId: 3, companyCode: 'TST', companyName: 'Test Co', isActive: 'T' },
 ];
 
-// Helper to create a seeded table hook result
 function renderSeededTable(overrides?: {
   data?: Company[];
   totalCount?: number;
@@ -51,31 +51,30 @@ function renderSeededTable(overrides?: {
     columns = COLUMNS,
   } = overrides ?? {};
 
-  const hookResult = renderHook(() =>
+  return renderHook(() =>
     useDataTable<Company>({
       columns,
       getRowId: (row) => String(row.companyId),
+      data,
+      totalCount,
+      isLoading,
+      isFetching,
       ...(selection ? { selection } : {}),
       ...(defaultPageSize ? { defaultPageSize } : {}),
     }),
   );
-
-  act(() => {
-    hookResult.result.current._setData(data, totalCount);
-    hookResult.result.current._setLoading(isLoading, isFetching);
-  });
-
-  return hookResult;
 }
 
 describe('DataTable', () => {
-  // ── Rendering ──
-
   describe('rendering', () => {
     it('renders table headers', () => {
       const { result } = renderSeededTable();
 
-      render(<DataTable table={result.current} />);
+      render(
+        <DataTable table={result.current}>
+          <DataTableContent />
+        </DataTable>,
+      );
 
       expect(screen.getByText('Code')).toBeInTheDocument();
       expect(screen.getByText('Name')).toBeInTheDocument();
@@ -85,7 +84,11 @@ describe('DataTable', () => {
     it('renders table rows', () => {
       const { result } = renderSeededTable();
 
-      render(<DataTable table={result.current} />);
+      render(
+        <DataTable table={result.current}>
+          <DataTableContent />
+        </DataTable>,
+      );
 
       expect(screen.getByText('ACM')).toBeInTheDocument();
       expect(screen.getByText('Acme Corp')).toBeInTheDocument();
@@ -96,7 +99,11 @@ describe('DataTable', () => {
     it('renders status badges', () => {
       const { result } = renderSeededTable();
 
-      render(<DataTable table={result.current} />);
+      render(
+        <DataTable table={result.current}>
+          <DataTableContent />
+        </DataTable>,
+      );
 
       const badges = screen.getAllByText(/Active|Inactive/);
       expect(badges).toHaveLength(3);
@@ -107,7 +114,11 @@ describe('DataTable', () => {
     it('shows loading state', () => {
       const { result } = renderSeededTable({ isLoading: true });
 
-      render(<DataTable table={result.current} />);
+      render(
+        <DataTable table={result.current}>
+          <DataTableContent />
+        </DataTable>,
+      );
 
       expect(screen.getByText('Loading...')).toBeInTheDocument();
       expect(screen.queryByText('ACM')).not.toBeInTheDocument();
@@ -116,13 +127,19 @@ describe('DataTable', () => {
     it('shows empty state', () => {
       const { result } = renderSeededTable({ data: [], totalCount: 0 });
 
-      render(<DataTable table={result.current} />);
+      render(
+        <DataTable table={result.current}>
+          <DataTableContent />
+        </DataTable>,
+      );
 
       expect(screen.getByText('No data found')).toBeInTheDocument();
     });
   });
 
-  // ── Row click ──
+  // ══════════════════════════════════════════════════════════════
+  // Row click
+  // ══════════════════════════════════════════════════════════════
 
   describe('row click', () => {
     it('calls onRowClick with row data', async () => {
@@ -130,20 +147,30 @@ describe('DataTable', () => {
       const onRowClick = vi.fn();
       const { result } = renderSeededTable();
 
-      render(<DataTable table={result.current} onRowClick={onRowClick} />);
+      render(
+        <DataTable table={result.current} onRowClick={onRowClick}>
+          <DataTableContent />
+        </DataTable>,
+      );
 
       await user.click(screen.getByText('Acme Corp'));
       expect(onRowClick).toHaveBeenCalledWith(SAMPLE_DATA[0]);
     });
   });
 
-  // ── Selection ──
+  // ══════════════════════════════════════════════════════════════
+  // Selection
+  // ══════════════════════════════════════════════════════════════
 
   describe('selection', () => {
     it('renders checkboxes when selection is enabled', () => {
       const { result } = renderSeededTable({ selection: { mode: 'multi' } });
 
-      render(<DataTable table={result.current} />);
+      render(
+        <DataTable table={result.current}>
+          <DataTableContent />
+        </DataTable>,
+      );
 
       // Header checkbox + 3 row checkboxes
       const checkboxes = screen.getAllByRole('checkbox');
@@ -153,7 +180,11 @@ describe('DataTable', () => {
     it('does not render checkboxes when selection is disabled', () => {
       const { result } = renderSeededTable();
 
-      render(<DataTable table={result.current} />);
+      render(
+        <DataTable table={result.current}>
+          <DataTableContent />
+        </DataTable>,
+      );
 
       expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     });
@@ -162,10 +193,13 @@ describe('DataTable', () => {
       const user = userEvent.setup();
       const { result } = renderSeededTable({ selection: { mode: 'multi' } });
 
-      render(<DataTable table={result.current} />);
+      render(
+        <DataTable table={result.current}>
+          <DataTableContent />
+        </DataTable>,
+      );
 
       const checkboxes = screen.getAllByRole('checkbox');
-      // Click first row checkbox (index 1, index 0 is header)
       await user.click(checkboxes[1]!);
 
       expect(result.current.selection!.state.isSelected('1')).toBe(true);
@@ -175,10 +209,13 @@ describe('DataTable', () => {
       const user = userEvent.setup();
       const { result } = renderSeededTable({ selection: { mode: 'multi' } });
 
-      render(<DataTable table={result.current} />);
+      render(
+        <DataTable table={result.current}>
+          <DataTableContent />
+        </DataTable>,
+      );
 
       const checkboxes = screen.getAllByRole('checkbox');
-      // Click header checkbox
       await user.click(checkboxes[0]!);
 
       expect(result.current.selection!.state.isSelected('1')).toBe(true);
@@ -187,13 +224,19 @@ describe('DataTable', () => {
     });
   });
 
-  // ── Sorting ──
+  // ══════════════════════════════════════════════════════════════
+  // Sorting
+  // ══════════════════════════════════════════════════════════════
 
   describe('sorting', () => {
     it('sortable columns show cursor pointer', () => {
       const { result } = renderSeededTable();
 
-      render(<DataTable table={result.current} />);
+      render(
+        <DataTable table={result.current}>
+          <DataTableContent />
+        </DataTable>,
+      );
 
       const codeHeader = screen.getByText('Code').closest('th');
       expect(codeHeader).toHaveClass('cursor-pointer');
@@ -202,7 +245,11 @@ describe('DataTable', () => {
     it('non-sortable columns do not show cursor', () => {
       const { result } = renderSeededTable();
 
-      render(<DataTable table={result.current} />);
+      render(
+        <DataTable table={result.current}>
+          <DataTableContent />
+        </DataTable>,
+      );
 
       const statusHeader = screen.getByText('Status').closest('th');
       expect(statusHeader).not.toHaveClass('cursor-pointer');
@@ -212,36 +259,83 @@ describe('DataTable', () => {
       const user = userEvent.setup();
       const { result } = renderSeededTable();
 
-      render(<DataTable table={result.current} />);
+      render(
+        <DataTable table={result.current}>
+          <DataTableContent />
+        </DataTable>,
+      );
 
       await user.click(screen.getByText('Code'));
       expect(result.current.sorting).toEqual([{ id: 'code', desc: false }]);
     });
   });
 
-  // ── Children (toolbar slot) ──
+  // ══════════════════════════════════════════════════════════════
+  // Compound component composition
+  // ══════════════════════════════════════════════════════════════
 
-  describe('children', () => {
-    it('renders children above the table', () => {
+  describe('compound composition', () => {
+    it('renders toolbar, content, and pagination as children', () => {
       const { result } = renderSeededTable();
 
       render(
         <DataTable table={result.current}>
-          <div data-testid="toolbar">My Toolbar</div>
+          <DataTableToolbar>
+            <DataTableSearch value="" onChange={() => {}} />
+            <DataTableActions>
+              <button>Add</button>
+            </DataTableActions>
+          </DataTableToolbar>
+          <DataTableContent />
+          <DataTablePagination />
         </DataTable>,
       );
 
-      expect(screen.getByTestId('toolbar')).toBeInTheDocument();
-      expect(screen.getByText('My Toolbar')).toBeInTheDocument();
+      // Toolbar
+      expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
+      expect(screen.getByText('Add')).toBeInTheDocument();
+      // Content
+      expect(screen.getByText('ACM')).toBeInTheDocument();
+      // Pagination
+      expect(screen.getByText('1 / 3')).toBeInTheDocument();
+    });
+
+    it('DataTableContent throws when used outside DataTable', () => {
+      // Suppress console.error from React error boundary
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      expect(() => render(<DataTableContent />)).toThrow(
+        'DataTable sub-components (DataTableContent, DataTablePagination) must be used within <DataTable>',
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('DataTablePagination throws when used outside DataTable', () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      expect(() => render(<DataTablePagination />)).toThrow(
+        'DataTable sub-components (DataTableContent, DataTablePagination) must be used within <DataTable>',
+      );
+
+      consoleSpy.mockRestore();
     });
   });
 });
+
+// ══════════════════════════════════════════════════════════════
+// DataTablePagination
+// ══════════════════════════════════════════════════════════════
 
 describe('DataTablePagination', () => {
   it('shows correct range text', () => {
     const { result } = renderSeededTable();
 
-    render(<DataTablePagination table={result.current} />);
+    render(
+      <DataTable table={result.current}>
+        <DataTablePagination />
+      </DataTable>,
+    );
 
     expect(screen.getByText(/Showing 1 to 10 of 25/)).toBeInTheDocument();
   });
@@ -249,7 +343,11 @@ describe('DataTablePagination', () => {
   it('shows page info', () => {
     const { result } = renderSeededTable();
 
-    render(<DataTablePagination table={result.current} />);
+    render(
+      <DataTable table={result.current}>
+        <DataTablePagination />
+      </DataTable>,
+    );
 
     expect(screen.getByText('1 / 3')).toBeInTheDocument();
   });
@@ -258,7 +356,11 @@ describe('DataTablePagination', () => {
     const user = userEvent.setup();
     const { result } = renderSeededTable();
 
-    render(<DataTablePagination table={result.current} />);
+    render(
+      <DataTable table={result.current}>
+        <DataTablePagination />
+      </DataTable>,
+    );
 
     await user.click(screen.getByText('→'));
     expect(result.current.page).toBe(2);
@@ -267,7 +369,11 @@ describe('DataTablePagination', () => {
   it('disables previous on first page', () => {
     const { result } = renderSeededTable();
 
-    render(<DataTablePagination table={result.current} />);
+    render(
+      <DataTable table={result.current}>
+        <DataTablePagination />
+      </DataTable>,
+    );
 
     const prevButton = screen.getByText('←');
     expect(prevButton).toBeDisabled();
@@ -276,11 +382,19 @@ describe('DataTablePagination', () => {
   it('shows no results when empty', () => {
     const { result } = renderSeededTable({ data: [], totalCount: 0 });
 
-    render(<DataTablePagination table={result.current} />);
+    render(
+      <DataTable table={result.current}>
+        <DataTablePagination />
+      </DataTable>,
+    );
 
     expect(screen.getByText('No results')).toBeInTheDocument();
   });
 });
+
+// ══════════════════════════════════════════════════════════════
+// DataTableToolbar (unchanged — layout only)
+// ══════════════════════════════════════════════════════════════
 
 describe('DataTableToolbar', () => {
   it('renders search and actions', () => {
