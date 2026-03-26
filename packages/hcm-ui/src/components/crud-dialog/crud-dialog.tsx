@@ -11,12 +11,13 @@ import {
 } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { ConfirmDialog } from '../confirm-dialog/confirm-dialog';
-import type { FormMode, UseCrudFormReturn } from '../../hooks/use-crud-dialog';
+import type { FormMode, UseCrudDialogReturn } from '../../hooks/use-crud-dialog';
 
-export interface CrudDialogProps<TForm extends Record<string, unknown>> {
-  crud: UseCrudFormReturn<TForm>;
+export interface CrudDialogProps {
+  crud: UseCrudDialogReturn<unknown>;
   onSubmit: () => void;
   isSubmitting?: boolean;
+  isDirty?: boolean;
   entityName?: string;
   title?: string;
   description?: string;
@@ -55,11 +56,12 @@ function getSubmitLabel(mode: FormMode): string {
   }
 }
 
-export function CrudDialog<TForm extends Record<string, unknown>>(props: CrudDialogProps<TForm>) {
+export function CrudDialog(props: CrudDialogProps) {
   const {
     crud,
     onSubmit,
     isSubmitting = false,
+    isDirty = false,
     entityName,
     title,
     description,
@@ -108,7 +110,7 @@ export function CrudDialog<TForm extends Record<string, unknown>>(props: CrudDia
           {renderFooter
             ? renderFooter({
                 mode: crud.mode,
-                isDirty: crud.isDirty,
+                isDirty,
                 isSubmitting,
                 onClose: crud.requestClose,
                 onSubmit,
