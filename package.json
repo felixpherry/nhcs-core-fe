@@ -10,8 +10,7 @@
     "lint": "eslint .",
     "prepare": "husky",
     "test": "turbo test",
-    "test:watch": "vitest",
-    "storybook": "turbo --filter web storybook"
+    "test:watch": "vitest"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,mjs}": [

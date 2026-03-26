@@ -8,32 +8,32 @@ Migrating from Nuxt 2/Vue 2 to Next.js + tRPC + TypeScript + Turborepo. The syst
 
 ## Stack
 
-- **Framework:** Next.js 15 (App Router)
+- **Framework:** Next.js 16 (App Router, React Compiler)
 - **API Layer:** tRPC v11 (React Query)
 - **Language:** TypeScript (strict, no `any`)
 - **Styling:** Tailwind CSS v4 + shadcn/ui (radix-nova style)
+- **Forms:** TanStack Form + Zod
+- **Tables:** TanStack Table via DiceUI (`@diceui/data-table`)
 - **Validation:** Zod
 - **Monorepo:** Turborepo + pnpm workspaces
 - **Testing:** Vitest + React Testing Library (Kent C. Dodds Testing Trophy)
-- **Component Dev:** Storybook 8
-- **Deployment:** Docker (nginx for Storybook, standalone Node.js for Next.js)
+- **Deployment:** Docker (standalone Node.js for Next.js)
 
 ## Monorepo Package Graph
 
 ```
 @nhcs/types <- @nhcs/registries <- @nhcs/api <- apps/web
-
 ```
 
 ### Package Responsibilities
 
-| Package      | Import             | Responsibility                                 |
-| ------------ | ------------------ | ---------------------------------------------- |
-| `types`      | `@nhcs/types`      | Zod schemas, envelope types, shared types      |
-| `registries` | `@nhcs/registries` | Policy table, procedure registry               |
-| `api`        | `@nhcs/api`        | tRPC routers, backendFetch (INTERNAL), errors  |
-| `config`     | `@nhcs/config`     | Shared tsconfig                                |
-| `web`        | N/A (app)          | Next.js app. Owns tRPC client, pages, routing. |
+| Package      | Import             | Responsibility                                                                   |
+| ------------ | ------------------ | -------------------------------------------------------------------------------- |
+| `types`      | `@nhcs/types`      | Zod schemas, envelope types, shared types                                        |
+| `registries` | `@nhcs/registries` | Policy table, procedure registry                                                 |
+| `api`        | `@nhcs/api`        | tRPC routers, backendFetch (INTERNAL), errors                                    |
+| `config`     | `@nhcs/config`     | Shared tsconfig                                                                  |
+| `web`        | N/A (app)          | Next.js app. Owns all UI: components, hooks, forms, pages, routing, tRPC client. |
 
 ## Backend Integration
 
@@ -90,84 +90,73 @@ routers/
 
 Common routers serve chooser dialogs used across multiple domains.
 
-## hcm-ui Component Architecture
+## Form Architecture
 
-### Design Doc: v4.4
+### Dialog Lifecycle: `useCrudDialog<TData>`
 
-The component library follows a headless hook + compound component pattern:
+Headless hook managing open/close, mode (create/edit/view), editData, loading, and dirty guard. Does NOT own form values — TanStack Form does.
 
-- **Hooks** manage state and logic (useSelection, useDataTable, useChooser, useTreeTable, useWorkflowActions)
-- **Components** handle rendering (DataTable, ChooserDialog, TreeTable, WorkflowModalFooter)
-- Hooks are framework-agnostic. Components use shadcn/ui primitives.
+Key features:
 
-### Key Patterns
+- State reducer pattern for intercepting transitions
+- Lifecycle callbacks (`onIsOpenChange`, `onModeChange`)
+- Race condition guard for `openEditById` (monotonic counter)
+- `syncIsDirty(boolean)` — called by CrudFormBridge to sync TanStack Form's dirty state into the close guard
 
-**Imperative data setting (useDataTable):**
+### Form Bridge: `CrudFormBridge`
 
-```ts
-table._setData(data, count); // NOT passed as options
-table._setLoading(isLoading);
+Creates TanStack Form via `useAppForm` (from `createFormHook`). Syncs `isDirty` to `useCrudDialog`. Renders a `<form>` element with an `id` so CrudDialog's footer button can target it via `form={formId}`.
+
+### Field Composition Pattern
+
+```tsx
+<form.AppField name="companyCode">
+  {(field) => (
+    <FieldWrapper label="Company Code" required>
+      <Input {...getInputProps(field, { disabled: isView })} />
+    </FieldWrapper>
+  )}
+</form.AppField>
 ```
 
-**Selection methods, not booleans:**
+- `FieldWrapper` reads `useFieldContext()` for label/error/required chrome
+- Prop getters (`getInputProps`, `getSelectProps`, `getTextareaProps`, `getCheckboxProps`, `getDateProps`, `getChooserProps`) wire input components
+- Choosers use `getChooserProps<T>(field)` for rich object value/onChange
 
-```ts
-state.isAllSelected(allKeys); // Needs full key list
-state.isPartiallySelected(allKeys);
-```
+### Key Form Patterns
 
-**Async combobox server filtering:**
+- **Rich objects in form state** — Choosers store `{ id, code, name }`, flatten at submit
+- **Cascading clears** — `usePrevious` + conditional `form.setFieldValue` (no `useEffect`)
+- **Conditional visibility** — plain JSX conditionals
+- **No FormBuilder / FormFieldConfig** — compose fields directly with JSX
 
-```ts
-<Command shouldFilter={false}>   // cmdk client filtering disabled
-// queryFn receives search param, server does filtering
-```
+### DataTable (DiceUI)
 
-**Chooser: keys in, projected values out:**
+Source-installed via shadcn CLI from `@diceui/data-table`. Built on TanStack Table. Features: URL-synced pagination/sorting via nuqs, column filters, sort lists, column visibility, action bar on selection.
 
-```ts
-chooser.open(['1', '2'])         // Takes IDs
-mapSelected(TData) → TValue      // Runs only at confirm
-rowKey(row) === selectedKey      // String equality for matching
-```
+### Feature Components (Choosers)
 
-**TreeTable policy-aware selection:**
-
-```ts
-toggleNode(id); // Applies selection policy
-// NOT selection.toggleRow(id)   // Bypasses policy
-```
-
-**Workflow pipeline:**
-
-```
-idle → confirm → input → executing → idle
-// Steps are skipped if not configured on the action
-```
-
-### Feature Components (Reusable Choosers)
-
-Live in `@nhcs/web`. Receive data via props — NO tRPC dependency:
+Live in `apps/web/src/components/`. Receive data via props — NO tRPC dependency:
 
 ```tsx
 <CompanyGroupChooser
-  listData={data} // Consumer wires tRPC query
+  listData={data}
   listCount={count}
   isLoading={loading}
-  onQueryChange={setQuery} // Notifies when search/page changes
-  validateCode={fn} // Consumer handles code validation
+  onQueryChange={setQuery}
+  validateCode={fn}
 />
 ```
 
-Rationale: tRPC client lives in `apps/web`. Shared packages can't import app-specific modules.
+Consumer wires the tRPC query at the page level.
 
 ## Page Architecture (Company Page Example)
 
 ```
 page.tsx                    # Next.js page shell
 company-list.tsx            # DataTable + form dialog + confirm dialogs
-columns.tsx                 # createCompanyColumns(actions) — 19 columns
-company-form-dialog.tsx     # Add/Edit/View dialog with choosers
+columns.tsx                 # ColumnDef<Company>[] with DataTableColumnHeader
+company-form-dialog.tsx     # CrudDialog + CrudFormBridge + form.AppField composition
 company-filter-dialog.tsx   # Advanced filter with choosers
 ```
 

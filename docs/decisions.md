@@ -63,3 +63,33 @@ Aligned with Figma ESS/MSS design. `--primary` changed from `oklch(0.205 0 0)` t
 **Decision:** Rename the concept from CrudSheet to CrudDialog across documentation. The `useCrudForm` hook remains unchanged — it's container-agnostic. Future CRUD forms should use centered `Dialog` by default, with `Sheet` as an option for forms that benefit from side-panel layout (e.g., forms with a reference table visible behind).
 
 **Rationale:** Centered dialogs are more natural for CRUD forms in HCM systems — they focus attention on the form. Side panels are better for supplementary information (filters, settings).
+
+## 2026-03-26 — Dissolved hcm-ui and features packages into apps/web
+
+**Context:** The `packages/hcm-ui` UI library and `packages/features` shared components were separate workspace packages consumed by `apps/web`. This caused: bundler alias issues (Turbopack couldn't resolve `#/` paths), missing peer deps, circular shadcn imports, and constant import path fixing after every `shadcn add`.
+
+**Decision:** Move all UI code (components, hooks, form utilities, DiceUI data-table) directly into `apps/web/src/`. Delete `packages/hcm-ui` and `packages/features`. Feature components (CompanyGroupChooser, AreaChooser) moved to `apps/web/src/components/`. All imports use `@/` alias.
+
+**Rationale:** The package boundary provided no value — there's only one consuming app. Every benefit (code sharing, independent versioning) was theoretical. Every cost (bundler compat, dep management, import path maintenance) was real and recurring.
+
+## 2026-03-26 — Replaced custom DataTable with DiceUI @diceui/data-table
+
+**Context:** Custom `useDataTable`, `createColumns`, `DataTable` compound components, `useRemoteTableQuery` totaled ~400 LoC and lacked features DiceUI provides: column pinning, filter lists, sort lists, URL state sync, action bar on selection.
+
+**Decision:** Delete custom DataTable system. Install DiceUI via `shadcn add @diceui/data-table`. Source code lands in the project (shadcn-style) — fully customizable. Columns use TanStack Table's native `ColumnDef<T>[]`.
+
+## 2026-03-26 — Replaced FormBuilder/FormFieldConfig with TanStack Form composition
+
+**Context:** Built a custom FormBuilder with reactive `FormFieldConfig`, dependency graph, compute/effect system, and external deps registry. The most complex parts of forms always ended up as `type: 'custom', render: (ctx) => <Component />` — JSX with extra steps. The framework added ~1000 LoC for marginal benefit over direct `form.Field` calls.
+
+**Decision:** Delete FormBuilder, FormFieldConfig types, FormField renderer, FormContext/CrudFormProvider/StandaloneFormProvider. Use TanStack Form's `createFormHook` + `createFormHookContexts` for field context injection. Compose fields with `form.AppField` + `FieldWrapper` (reads field context for label/error) + prop getters (`getInputProps`, `getSelectProps`, etc.). ~150 LoC total.
+
+**Rationale:** Plane.so's codebase proves that direct field composition scales to 1100+ LoC forms without a FormBuilder. The escape hatch hierarchy (custom nodes → custom render → raw JSX) meant every non-trivial field bypassed the system anyway.
+
+## 2026-03-26 — Renamed useCrudForm to useCrudDialog, stripped form value ownership
+
+**Context:** `useCrudForm` owned form values, dirty tracking, field operations, AND dialog lifecycle. With TanStack Form handling values/validation/dirty, the hook was duplicating work.
+
+**Decision:** Rename to `useCrudDialog`. Remove: `values`, `initialValues`, `isDirty` (computed), `setFieldValue`, `setValues`, `reset`, `SET_FIELD_VALUE`/`SET_VALUES`/`RESET` actions, `defaultValues` option, `transformForEdit` option. Add: `editData: TData | null` (raw backend data), `syncIsDirty(boolean)` (called by CrudFormBridge to sync TanStack Form's dirty state). Generic simplified from `<TForm, TData>` to `<TData>`.
+
+**Rationale:** Single responsibility. The hook manages dialog lifecycle. TanStack Form manages form state. CrudFormBridge is the adapter between them.

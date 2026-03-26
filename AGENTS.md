@@ -8,7 +8,7 @@ You are building the NHCS (New Human Capital System) frontend — a migration fr
 
 ## Stack
 
-Next.js 15 (App Router), tRPC v11, TypeScript (strict, no `any`), Tailwind CSS v4, shadcn/ui, Zod, Turborepo + pnpm, Vitest + RTL, Storybook 8, Docker.
+Next.js 16 (App Router, React Compiler), tRPC v11, TypeScript (strict, no `any`), Tailwind CSS v4, shadcn/ui, TanStack Form + Zod, TanStack Table (via DiceUI), Turborepo + pnpm, Vitest + RTL, Docker.
 
 ## Commands
 
@@ -18,18 +18,14 @@ pnpm build                  # Build all packages
 pnpm lint                   # Lint
 pnpm format                 # Format
 
-# Testing (from packages/hcm-ui)
-cd packages/hcm-ui && pnpm vitest run src/path/to/file.test.ts && cd ../..
-
-# Storybook
-cd packages/hcm-ui && pnpm storybook
+# Testing (from repo root)
+pnpm vitest run apps/web/src/path/to/file.test.ts
 
 # Docker
 docker compose up --build
-docker compose up storybook --build
 
-# shadcn (always fix cn import path after)
-cd packages/hcm-ui && pnpm dlx shadcn@latest add <component> && cd ../..
+# shadcn (from apps/web — components land in src/components/ui/)
+cd apps/web && pnpm dlx shadcn@latest add <component> && cd ../..
 ```
 
 ## Package Boundaries (HARD RULES — never break)
@@ -39,8 +35,9 @@ cd packages/hcm-ui && pnpm dlx shadcn@latest add <component> && cd ../..
 ```
 
 1. `backendFetch` is INTERNAL to `@nhcs/api` — never export it.
-2. No circular dependencies — web depend on api, never reverse.
+2. No circular dependencies — web depends on api, never reverse.
 3. Common chooser endpoints live under `routers/common/`.
+4. All UI components, hooks, and form utilities live in `apps/web/src/` — no separate UI package.
 
 ## Hard Rules (never break)
 
@@ -56,10 +53,29 @@ cd packages/hcm-ui && pnpm dlx shadcn@latest add <component> && cd ../..
 - **`query-string`** — use `stringifyUrl()` for URL building.
 - **Conventional commits** — `feat`, `fix`, `chore`, `refactor`, `test`, `style`. Title only, no description body.
 - **`import type`** for type-only imports.
-- **shadcn cn import** — newly installed components generate `@/lib/utils`. Change to relative `../../lib/utils`.
-- **`pnpm dlx`** not `npx`. Always `cd ../..` back to root after package work.
+- **`pnpm dlx`** not `npx`.
 - **Co-located tests** — `x.test.ts` next to `x.ts`, not in `__tests__/`.
 - **Co-located stories** — `x.stories.tsx` next to the component.
+- **No `useCallback`/`useMemo`** — React Compiler handles memoization. Only use `useRef` for genuinely mutable cross-render state (race condition guards, previous value tracking, side-channel communication).
+
+## Form Architecture
+
+Forms use TanStack Form + Zod. The system has three layers:
+
+1. **`useCrudDialog<TData>`** — dialog lifecycle (open/close, mode, editData, dirty guard). Does NOT own form values.
+2. **`CrudFormBridge`** — creates TanStack Form via `useAppForm`, syncs `isDirty` to `useCrudDialog`, wraps children in `<form>`.
+3. **`form.AppField` + `FieldWrapper` + prop getters** — compose fields. `FieldWrapper` reads field context for label/error chrome. Prop getters (`getInputProps`, `getSelectProps`, etc.) wire input components.
+
+Key patterns:
+
+- **Rich objects in form state** — Choosers store `{ id, code, name }`, flatten at submit via `toSubmitPayload()`.
+- **Cascading clears** — use `usePrevious` + conditional `form.setFieldValue` in the component body. No `useEffect`.
+- **Conditional visibility** — plain JSX conditionals: `{pcnType && (...)}`.
+- **CrudDialog** — submit button uses `form={formId}` HTML attribute to target the `<form>` in `CrudFormBridge`.
+
+## DataTable
+
+Uses DiceUI's `@diceui/data-table` (shadcn-style install, source in project). Built on TanStack Table. URL-synced pagination/sorting via nuqs. Components: `DataTable`, `DataTableToolbar`, `DataTableSortList`, `DataTablePagination`, `DataTableColumnHeader`, `DataTableViewOptions`.
 
 ## Domain Knowledge (can't infer from code)
 
@@ -71,7 +87,6 @@ cd packages/hcm-ui && pnpm dlx shadcn@latest add <component> && cd ../..
 
 ## Key Implementation Patterns
 
-- **useDataTable data is set imperatively** — `table._setData(data, count)`. NOT passed as options.
 - **useSelection methods** — `isAllSelected(allKeys)` needs full key list. It's a method, not a boolean.
 - **AsyncCombobox** — `shouldFilter={false}` (server filters). Query only fires when popup is open.
 - **useChooser** — keys in, projected values out. `trackRows()` inside table component's useEffect, not on mount.
@@ -89,6 +104,7 @@ cd packages/hcm-ui && pnpm dlx shadcn@latest add <component> && cd ../..
 - `useLayoutEffect` flash: when dynamically calculating visible chips, start with `measured: false` and hide container with `invisible` class until measurement completes.
 - Button variant classes in tests: destructive is `bg-destructive/10`, outline is `border-border`. Check actual generated classes.
 - `happy-dom` has no real layout — `offsetWidth` returns 0. Tests that depend on overflow/layout must be Storybook visual tests instead.
+- Radix DialogContent renders its own Close (X) button — use `getAllByRole('button', { name: 'Close' })` and pick the last one for footer Close button tests.
 
 ## Session Workflow
 
@@ -111,6 +127,6 @@ docs/
   architecture.md                      <- Full system design
   decisions.md                         <- Append-only decision log
   implementation/
-    v1.0-component-library.md          <- Phase 1-5 tracker (DONE)
+    v1.0-component-library.md          <- Phase 1-5 tracker (historical)
     v1.1-reference-implementations.md  <- Company page + future pages
 ```
