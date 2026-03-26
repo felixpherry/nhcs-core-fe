@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState } from 'react';
 import type { ColumnConfig } from '../components/data-table/column-types';
 import {
   buildSortMapping,
@@ -15,14 +15,22 @@ import { useSelection, type UseSelectionOptions, type UseSelectionReturn } from 
 export interface UseDataTableOptions<TData> {
   columns: ColumnConfig<TData>[];
   getRowId: (row: TData) => string;
+
+  // ── Controlled data (from your query) ──
+
+  /** Row data to display. Defaults to `[]`. */
+  data?: TData[];
+  /** Total row count across all pages (for pagination). Defaults to `0`. */
+  totalCount?: number;
+  /** Whether the initial query is loading (no data yet). Defaults to `false`. */
+  isLoading?: boolean;
+  /** Whether a background refetch is in progress (has stale data). Defaults to `false`. */
+  isFetching?: boolean;
+
+  // ── Pagination ──
+
   defaultPageSize?: number;
   pageSizeOptions?: number[];
-  defaultSorting?: SortingState[];
-  selection?: Omit<UseSelectionOptions, 'mode'> & { mode?: 'single' | 'multi' };
-
-  // ── Controlled pagination (optional) ──
-  // When provided, these override internal useState.
-  // Use with nuqs, URL state, or any external state manager.
 
   /** Controlled page number (1-based). When set, internal page state is bypassed. */
   page?: number;
@@ -32,13 +40,17 @@ export interface UseDataTableOptions<TData> {
   pageSize?: number;
   /** Called when page size changes. Required when `pageSize` is controlled. */
   onPageSizeChange?: (size: number) => void;
+
+  // ── Sorting ──
+
+  defaultSorting?: SortingState[];
+
+  // ── Selection ──
+
+  selection?: Omit<UseSelectionOptions, 'mode'> & { mode?: 'single' | 'multi' };
 }
 
 export interface UseDataTableReturn<TData> {
-  // ── Reactive data (set by the page after query) ──
-  _setData: (data: TData[], totalCount: number) => void;
-  _setLoading: (isLoading: boolean, isFetching: boolean) => void;
-
   // ── Data ──
   data: TData[];
   totalCount: number;
@@ -93,6 +105,12 @@ export function useDataTable<TData>(
   const {
     columns,
     getRowId,
+    // Controlled data
+    data: controlledData,
+    totalCount: controlledTotalCount,
+    isLoading: controlledIsLoading,
+    isFetching: controlledIsFetching,
+    // Pagination
     defaultPageSize = 10,
     pageSizeOptions = [10, 25, 50, 100],
     defaultSorting = [],
@@ -104,110 +122,83 @@ export function useDataTable<TData>(
     onPageSizeChange,
   } = options;
 
-  // ── Detect controlled mode ──
+  // ── Data (controlled via props — no internal state needed) ──
+
+  const data = controlledData ?? [];
+  const totalCount = controlledTotalCount ?? 0;
+  const isLoading = controlledIsLoading ?? false;
+  const isFetching = controlledIsFetching ?? false;
+
+  // ── Pagination ──
 
   const isPageControlled = controlledPage !== undefined;
   const isPageSizeControlled = controlledPageSize !== undefined;
 
-  // ── Data (set externally via _setData) ──
-  const [data, setDataState] = useState<TData[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isFetching, setIsFetching] = useState(false);
-
-  const _setData = useCallback((newData: TData[], newTotalCount: number) => {
-    setDataState(newData);
-    setTotalCount(newTotalCount);
-  }, []);
-
-  const _setLoading = useCallback((loading: boolean, fetching: boolean) => {
-    setIsLoading(loading);
-    setIsFetching(fetching);
-  }, []);
-
-  // ── Pagination (internal state — used when NOT controlled) ──
   const [internalPage, setInternalPage] = useState(1);
   const [internalPageSize, setInternalPageSize] = useState(defaultPageSize);
 
-  // ── Resolve active page/pageSize ──
   const page = isPageControlled ? controlledPage : internalPage;
   const pageSize = isPageSizeControlled ? controlledPageSize : internalPageSize;
 
-  const pageCount = useMemo(
-    () => Math.max(1, Math.ceil(totalCount / pageSize)),
-    [totalCount, pageSize],
-  );
+  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
 
   const canPreviousPage = page > 1;
   const canNextPage = page < pageCount;
 
-  const setPage = useCallback(
-    (newPage: number) => {
-      const clamped = Math.max(1, Math.min(newPage, pageCount || 1));
-      if (isPageControlled) {
-        onPageChange?.(clamped);
-      } else {
-        setInternalPage(clamped);
-      }
-    },
-    [pageCount, isPageControlled, onPageChange],
-  );
+  const setPage = (newPage: number) => {
+    const clamped = Math.max(1, Math.min(newPage, pageCount || 1));
+    if (isPageControlled) {
+      onPageChange?.(clamped);
+    } else {
+      setInternalPage(clamped);
+    }
+  };
 
-  const setPageSize = useCallback(
-    (size: number) => {
-      if (isPageSizeControlled) {
-        onPageSizeChange?.(size);
-      } else {
-        setInternalPageSize(size);
-      }
-      // Reset to page 1 when page size changes
-      if (isPageControlled) {
-        onPageChange?.(1);
-      } else {
-        setInternalPage(1);
-      }
-    },
-    [isPageControlled, isPageSizeControlled, onPageChange, onPageSizeChange],
-  );
+  const setPageSize = (size: number) => {
+    if (isPageSizeControlled) {
+      onPageSizeChange?.(size);
+    } else {
+      setInternalPageSize(size);
+    }
+    // Reset to page 1 when page size changes
+    if (isPageControlled) {
+      onPageChange?.(1);
+    } else {
+      setInternalPage(1);
+    }
+  };
 
-  const previousPage = useCallback(() => {
-    setPage(page - 1);
-  }, [page, setPage]);
-
-  const nextPage = useCallback(() => {
-    setPage(page + 1);
-  }, [page, setPage]);
+  const previousPage = () => setPage(page - 1);
+  const nextPage = () => setPage(page + 1);
 
   // ── Sorting ──
+
   const [sorting, setSorting] = useState<SortingState[]>(defaultSorting);
 
-  const sortMapping = useMemo(() => buildSortMapping(columns), [columns]);
+  const sortMapping = buildSortMapping(columns);
+  const orderBys = sortingToOrderBys(sorting, sortMapping);
 
-  const orderBys = useMemo(() => sortingToOrderBys(sorting, sortMapping), [sorting, sortMapping]);
+  const toggleSort = (columnId: string) => {
+    setSorting((prev) => {
+      const existing = prev.find((s) => s.id === columnId);
+      if (!existing) {
+        return [...prev, { id: columnId, desc: false }];
+      }
+      if (!existing.desc) {
+        return prev.map((s) => (s.id === columnId ? { ...s, desc: true } : s));
+      }
+      return prev.filter((s) => s.id !== columnId);
+    });
+    setPage(1);
+  };
 
-  const toggleSort = useCallback(
-    (columnId: string) => {
-      setSorting((prev) => {
-        const existing = prev.find((s) => s.id === columnId);
-        if (!existing) {
-          return [...prev, { id: columnId, desc: false }];
-        }
-        if (!existing.desc) {
-          return prev.map((s) => (s.id === columnId ? { ...s, desc: true } : s));
-        }
-        return prev.filter((s) => s.id !== columnId);
-      });
-      setPage(1);
-    },
-    [setPage],
-  );
-
-  const clearSorting = useCallback(() => {
+  const clearSorting = () => {
     setSorting([]);
     setPage(1);
-  }, [setPage]);
+  };
 
   // ── Column visibility ──
+
   const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(() => {
     const vis: Record<string, boolean> = {};
     for (const col of columns) {
@@ -216,19 +207,17 @@ export function useDataTable<TData>(
     return vis;
   });
 
-  const visibleColumns = useMemo(
-    () => columns.filter((col) => columnVisibility[col.id] !== false),
-    [columns, columnVisibility],
-  );
+  const visibleColumns = columns.filter((col) => columnVisibility[col.id] !== false);
 
-  const toggleColumnVisibility = useCallback((columnId: string) => {
+  const toggleColumnVisibility = (columnId: string) => {
     setColumnVisibility((prev) => ({
       ...prev,
       [columnId]: !prev[columnId],
     }));
-  }, []);
+  };
 
   // ── Selection ──
+
   const selectionHook = useSelection({
     mode: selectionOptions?.mode ?? 'multi',
     initialKeys: selectionOptions?.initialKeys,
@@ -238,23 +227,15 @@ export function useDataTable<TData>(
 
   const selection = selectionOptions ? selectionHook : null;
 
-  // ── Query state (for building tRPC input) ──
-  const queryState = useMemo(
-    () => ({
-      page,
-      pageSize,
-      orderBys,
-    }),
-    [page, pageSize, orderBys],
-  );
+  // ── Query state ──
+
+  const queryState = { page, pageSize, orderBys };
 
   // ── Derived ──
+
   const isEmpty = !isLoading && data.length === 0;
 
   return {
-    _setData,
-    _setLoading,
-
     data,
     totalCount,
     isLoading,

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useDataTable } from './use-data-table';
 import { createColumns } from '../components/data-table/column-types';
@@ -29,53 +29,41 @@ function defaultOptions() {
   };
 }
 
-/** Helper: render the hook and seed it with data + loading state */
-function renderSeededTable(
-  overrides?: Partial<Parameters<typeof useDataTable<Company>>[0]> & {
-    data?: Company[];
-    totalCount?: number;
-    isLoading?: boolean;
-    isFetching?: boolean;
-  },
-) {
-  const { data, totalCount, isLoading, isFetching, ...hookOptions } = {
-    data: SAMPLE_DATA,
-    totalCount: 25,
-    isLoading: false,
-    isFetching: false,
-    ...overrides,
-  };
-
-  const result = renderHook(() => useDataTable<Company>({ ...defaultOptions(), ...hookOptions }));
-
-  // Seed data into the hook
-  act(() => {
-    result.result.current._setData(data, totalCount);
-    result.result.current._setLoading(isLoading, isFetching);
-  });
-
-  return result;
+/** Helper: render the hook with data passed as controlled props */
+function renderSeededTable(overrides?: Partial<Parameters<typeof useDataTable<Company>>[0]>) {
+  return renderHook(() =>
+    useDataTable<Company>({
+      ...defaultOptions(),
+      data: SAMPLE_DATA,
+      totalCount: 25,
+      isLoading: false,
+      isFetching: false,
+      ...overrides,
+    }),
+  );
 }
 
 describe('useDataTable', () => {
-  // ── Initial state (before seeding) ──
+  // ══════════════════════════════════════════════════════════════
+  // Initial / default state
+  // ══════════════════════════════════════════════════════════════
 
   describe('initial state', () => {
-    it('starts with loading=true and empty data before _setData/_setLoading', () => {
+    it('starts with empty data and no loading when no data props provided', () => {
       const { result } = renderHook(() => useDataTable(defaultOptions()));
 
       expect(result.current.page).toBe(1);
       expect(result.current.pageSize).toBe(10);
       expect(result.current.data).toEqual([]);
       expect(result.current.totalCount).toBe(0);
-      expect(result.current.isLoading).toBe(true);
+      expect(result.current.isLoading).toBe(false);
       expect(result.current.isFetching).toBe(false);
-      expect(result.current.isEmpty).toBe(false); // isLoading=true so isEmpty=false
+      expect(result.current.isEmpty).toBe(true);
       expect(result.current.sorting).toEqual([]);
       expect(result.current.selection).toBeNull();
     });
 
-    it('reflects data after _setData and _setLoading', () => {
+    it('reflects controlled data props', () => {
       const { result } = renderSeededTable();
 
       expect(result.current.data).toEqual(SAMPLE_DATA);
@@ -83,6 +71,18 @@ describe('useDataTable', () => {
       expect(result.current.isLoading).toBe(false);
       expect(result.current.isFetching).toBe(false);
       expect(result.current.isEmpty).toBe(false);
+    });
+
+    it('reflects isLoading from props', () => {
+      const { result } = renderSeededTable({ isLoading: true });
+
+      expect(result.current.isLoading).toBe(true);
+    });
+
+    it('reflects isFetching from props', () => {
+      const { result } = renderSeededTable({ isFetching: true });
+
+      expect(result.current.isFetching).toBe(true);
     });
 
     it('respects custom defaultPageSize', () => {
@@ -120,7 +120,69 @@ describe('useDataTable', () => {
     });
   });
 
-  // ── Pagination ──
+  // ══════════════════════════════════════════════════════════════
+  // Data reactivity
+  // ══════════════════════════════════════════════════════════════
+
+  describe('data reactivity', () => {
+    it('updates when data prop changes (simulates query refetch)', () => {
+      let data = SAMPLE_DATA;
+      let totalCount = 25;
+
+      const { result, rerender } = renderHook(() =>
+        useDataTable<Company>({
+          ...defaultOptions(),
+          data,
+          totalCount,
+          isLoading: false,
+          isFetching: false,
+        }),
+      );
+
+      expect(result.current.data).toEqual(SAMPLE_DATA);
+      expect(result.current.totalCount).toBe(25);
+
+      // Simulate query returning new data
+      data = [SAMPLE_DATA[0]!];
+      totalCount = 1;
+      rerender();
+
+      expect(result.current.data).toEqual([SAMPLE_DATA[0]]);
+      expect(result.current.totalCount).toBe(1);
+    });
+
+    it('loading → loaded transition works correctly', () => {
+      let isLoading = true;
+      let data: Company[] = [];
+      let totalCount = 0;
+
+      const { result, rerender } = renderHook(() =>
+        useDataTable<Company>({
+          ...defaultOptions(),
+          data,
+          totalCount,
+          isLoading,
+        }),
+      );
+
+      expect(result.current.isLoading).toBe(true);
+      expect(result.current.isEmpty).toBe(false); // loading → not empty
+
+      // Simulate query resolving
+      isLoading = false;
+      data = SAMPLE_DATA;
+      totalCount = 25;
+      rerender();
+
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.data).toEqual(SAMPLE_DATA);
+      expect(result.current.isEmpty).toBe(false);
+    });
+  });
+
+  // ══════════════════════════════════════════════════════════════
+  // Pagination
+  // ══════════════════════════════════════════════════════════════
 
   describe('pagination', () => {
     it('calculates pageCount correctly', () => {
@@ -205,7 +267,57 @@ describe('useDataTable', () => {
     });
   });
 
-  // ── Sorting ──
+  // ══════════════════════════════════════════════════════════════
+  // Controlled pagination
+  // ══════════════════════════════════════════════════════════════
+
+  describe('controlled pagination', () => {
+    it('uses controlled page when provided', () => {
+      const { result } = renderSeededTable({ page: 2, onPageChange: () => {} });
+
+      expect(result.current.page).toBe(2);
+    });
+
+    it('calls onPageChange instead of internal setState', () => {
+      const onPageChange = vi.fn();
+
+      const { result } = renderSeededTable({ page: 1, onPageChange });
+
+      act(() => result.current.setPage(2));
+
+      expect(onPageChange).toHaveBeenCalledWith(2);
+    });
+
+    it('uses controlled pageSize when provided', () => {
+      const { result } = renderSeededTable({
+        pageSize: 50,
+        onPageSizeChange: () => {},
+      });
+
+      expect(result.current.pageSize).toBe(50);
+    });
+
+    it('calls onPageSizeChange and resets page on pageSize change', () => {
+      const onPageSizeChange = vi.fn();
+      const onPageChange = vi.fn();
+
+      const { result } = renderSeededTable({
+        page: 3,
+        pageSize: 10,
+        onPageChange,
+        onPageSizeChange,
+      });
+
+      act(() => result.current.setPageSize(25));
+
+      expect(onPageSizeChange).toHaveBeenCalledWith(25);
+      expect(onPageChange).toHaveBeenCalledWith(1); // page reset
+    });
+  });
+
+  // ══════════════════════════════════════════════════════════════
+  // Sorting
+  // ══════════════════════════════════════════════════════════════
 
   describe('sorting', () => {
     it('toggleSort adds ascending sort', () => {
@@ -270,7 +382,9 @@ describe('useDataTable', () => {
     });
   });
 
-  // ── Column visibility ──
+  // ══════════════════════════════════════════════════════════════
+  // Column visibility
+  // ══════════════════════════════════════════════════════════════
 
   describe('column visibility', () => {
     it('all columns visible by default', () => {
@@ -311,7 +425,9 @@ describe('useDataTable', () => {
     });
   });
 
-  // ── Selection ──
+  // ══════════════════════════════════════════════════════════════
+  // Selection
+  // ══════════════════════════════════════════════════════════════
 
   describe('selection', () => {
     it('returns null when selection not configured', () => {
@@ -348,7 +464,34 @@ describe('useDataTable', () => {
     });
   });
 
-  // ── getRowId ──
+  // ══════════════════════════════════════════════════════════════
+  // Query state
+  // ══════════════════════════════════════════════════════════════
+
+  describe('queryState', () => {
+    it('reflects current pagination and sorting', () => {
+      const { result } = renderSeededTable();
+
+      expect(result.current.queryState).toEqual({
+        page: 1,
+        pageSize: 10,
+        orderBys: [],
+      });
+
+      act(() => result.current.toggleSort('code'));
+      act(() => result.current.setPage(2));
+
+      expect(result.current.queryState).toEqual({
+        page: 2,
+        pageSize: 10,
+        orderBys: [{ item1: 'companyCode', item2: true }],
+      });
+    });
+  });
+
+  // ══════════════════════════════════════════════════════════════
+  // getRowId
+  // ══════════════════════════════════════════════════════════════
 
   describe('getRowId', () => {
     it('is accessible from return value', () => {
