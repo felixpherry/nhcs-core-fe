@@ -8,5 +8,4 @@ export type {
   DividerNode,
   CardNode,
   CustomNode,
-  FormBuilderContext,
 } from './types';

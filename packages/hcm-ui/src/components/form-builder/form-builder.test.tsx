@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FormBuilder } from './form-builder';
 import type { FormNode } from './types';
+import { StandaloneFormProvider } from '../../contexts/form-context';
 
 type TestForm = {
   firstName: string;
@@ -22,6 +23,37 @@ const DEFAULT_VALUES: TestForm = {
   isActive: false,
 };
 
+/** Helper: render FormBuilder inside a StandaloneFormProvider */
+function renderFormBuilder(opts: {
+  nodes: FormNode<TestForm>[];
+  values?: TestForm;
+  errors?: Record<string, string[]>;
+  mode?: 'create' | 'edit' | 'view';
+  onChange?: <K extends keyof TestForm>(key: K, value: TestForm[K]) => void;
+  onBlur?: (name: string) => void;
+}) {
+  const {
+    nodes,
+    values = DEFAULT_VALUES,
+    errors = {},
+    mode = 'create',
+    onChange = () => {},
+    onBlur,
+  } = opts;
+
+  return render(
+    <StandaloneFormProvider
+      values={values}
+      onChange={onChange}
+      errors={errors}
+      mode={mode}
+      onBlur={onBlur}
+    >
+      <FormBuilder nodes={nodes} />
+    </StandaloneFormProvider>,
+  );
+}
+
 describe('FormBuilder', () => {
   // ── Field nodes ──
 
@@ -40,8 +72,7 @@ describe('FormBuilder', () => {
         },
       ];
 
-      render(<FormBuilder nodes={nodes} values={DEFAULT_VALUES} onChange={() => {}} />);
-
+      renderFormBuilder({ nodes });
       expect(screen.getByLabelText('First Name')).toBeInTheDocument();
     });
 
@@ -58,14 +89,7 @@ describe('FormBuilder', () => {
         },
       ];
 
-      render(
-        <FormBuilder
-          nodes={nodes}
-          values={{ ...DEFAULT_VALUES, firstName: 'John' }}
-          onChange={() => {}}
-        />,
-      );
-
+      renderFormBuilder({ nodes, values: { ...DEFAULT_VALUES, firstName: 'John' } });
       expect(screen.getByLabelText('First Name')).toHaveValue('John');
     });
 
@@ -85,7 +109,7 @@ describe('FormBuilder', () => {
         },
       ];
 
-      render(<FormBuilder nodes={nodes} values={DEFAULT_VALUES} onChange={onChange} />);
+      renderFormBuilder({ nodes, onChange });
 
       await user.type(screen.getByLabelText('First Name'), 'J');
       expect(onChange).toHaveBeenCalledWith('firstName', 'J');
@@ -104,15 +128,7 @@ describe('FormBuilder', () => {
         },
       ];
 
-      render(
-        <FormBuilder
-          nodes={nodes}
-          values={DEFAULT_VALUES}
-          errors={{ email: ['Email is required'] }}
-          onChange={() => {}}
-        />,
-      );
-
+      renderFormBuilder({ nodes, errors: { email: ['Email is required'] } });
       expect(screen.getByText('Email is required')).toBeInTheDocument();
     });
 
@@ -129,8 +145,7 @@ describe('FormBuilder', () => {
         },
       ];
 
-      render(<FormBuilder nodes={nodes} values={DEFAULT_VALUES} mode="view" onChange={() => {}} />);
-
+      renderFormBuilder({ nodes, mode: 'view' });
       expect(screen.getByLabelText('First Name')).toBeDisabled();
     });
   });
@@ -158,8 +173,7 @@ describe('FormBuilder', () => {
         },
       ];
 
-      render(<FormBuilder nodes={nodes} values={DEFAULT_VALUES} onChange={() => {}} />);
-
+      renderFormBuilder({ nodes });
       expect(screen.getByText('Personal Info')).toBeInTheDocument();
       expect(screen.getByText('Basic information')).toBeInTheDocument();
       expect(screen.getByLabelText('First Name')).toBeInTheDocument();
@@ -177,28 +191,17 @@ describe('FormBuilder', () => {
           children: [
             {
               type: 'field',
-              config: {
-                id: 'firstName',
-                name: 'firstName',
-                label: 'First Name',
-                type: 'text',
-              },
+              config: { id: 'firstName', name: 'firstName', label: 'First Name', type: 'text' },
             },
             {
               type: 'field',
-              config: {
-                id: 'lastName',
-                name: 'lastName',
-                label: 'Last Name',
-                type: 'text',
-              },
+              config: { id: 'lastName', name: 'lastName', label: 'Last Name', type: 'text' },
             },
           ],
         },
       ];
 
-      render(<FormBuilder nodes={nodes} values={DEFAULT_VALUES} onChange={() => {}} />);
-
+      renderFormBuilder({ nodes });
       expect(screen.getByLabelText('First Name')).toBeInTheDocument();
       expect(screen.getByLabelText('Last Name')).toBeInTheDocument();
     });
@@ -214,28 +217,17 @@ describe('FormBuilder', () => {
           children: [
             {
               type: 'field',
-              config: {
-                id: 'firstName',
-                name: 'firstName',
-                label: 'First Name',
-                type: 'text',
-              },
+              config: { id: 'firstName', name: 'firstName', label: 'First Name', type: 'text' },
             },
             {
               type: 'field',
-              config: {
-                id: 'lastName',
-                name: 'lastName',
-                label: 'Last Name',
-                type: 'text',
-              },
+              config: { id: 'lastName', name: 'lastName', label: 'Last Name', type: 'text' },
             },
           ],
         },
       ];
 
-      render(<FormBuilder nodes={nodes} values={DEFAULT_VALUES} onChange={() => {}} />);
-
+      renderFormBuilder({ nodes });
       expect(screen.getByLabelText('First Name')).toBeInTheDocument();
       expect(screen.getByLabelText('Last Name')).toBeInTheDocument();
     });
@@ -248,27 +240,16 @@ describe('FormBuilder', () => {
       const nodes: FormNode<TestForm>[] = [
         {
           type: 'field',
-          config: {
-            id: 'firstName',
-            name: 'firstName',
-            label: 'First Name',
-            type: 'text',
-          },
+          config: { id: 'firstName', name: 'firstName', label: 'First Name', type: 'text' },
         },
         { type: 'divider' },
         {
           type: 'field',
-          config: {
-            id: 'email',
-            name: 'email',
-            label: 'Email',
-            type: 'text',
-          },
+          config: { id: 'email', name: 'email', label: 'Email', type: 'text' },
         },
       ];
 
-      render(<FormBuilder nodes={nodes} values={DEFAULT_VALUES} onChange={() => {}} />);
-
+      renderFormBuilder({ nodes });
       expect(screen.getByLabelText('First Name')).toBeInTheDocument();
       expect(screen.getByLabelText('Email')).toBeInTheDocument();
       expect(document.querySelector('[data-slot="separator"]')).toBeInTheDocument();
@@ -287,19 +268,13 @@ describe('FormBuilder', () => {
           children: [
             {
               type: 'field',
-              config: {
-                id: 'email',
-                name: 'email',
-                label: 'Email',
-                type: 'text',
-              },
+              config: { id: 'email', name: 'email', label: 'Email', type: 'text' },
             },
           ],
         },
       ];
 
-      render(<FormBuilder nodes={nodes} values={DEFAULT_VALUES} onChange={() => {}} />);
-
+      renderFormBuilder({ nodes });
       expect(screen.getByText('Contact Details')).toBeInTheDocument();
       expect(screen.getByText('How to reach you')).toBeInTheDocument();
       expect(screen.getByLabelText('Email')).toBeInTheDocument();
@@ -309,28 +284,45 @@ describe('FormBuilder', () => {
   // ── Custom nodes ──
 
   describe('custom nodes', () => {
-    it('renders custom content with context', () => {
+    it('renders custom content with full form context', () => {
       const nodes: FormNode<TestForm>[] = [
         {
           type: 'custom',
           render: (ctx) => (
             <div data-testid="custom">
-              Mode: {ctx.mode}, Name: {String(ctx.values.firstName)}
+              Mode: {ctx.mode}, Name: {String(ctx.values.firstName)}, Dirty: {String(ctx.isDirty)}
             </div>
           ),
         },
       ];
 
-      render(
-        <FormBuilder
-          nodes={nodes}
-          values={{ ...DEFAULT_VALUES, firstName: 'John' }}
-          mode="edit"
-          onChange={() => {}}
-        />,
-      );
+      renderFormBuilder({
+        nodes,
+        values: { ...DEFAULT_VALUES, firstName: 'John' },
+        mode: 'edit',
+      });
 
-      expect(screen.getByTestId('custom')).toHaveTextContent('Mode: edit, Name: John');
+      const el = screen.getByTestId('custom');
+      expect(el).toHaveTextContent('Mode: edit, Name: John, Dirty: false');
+    });
+
+    it('custom node can access errors from context', () => {
+      const nodes: FormNode<TestForm>[] = [
+        {
+          type: 'custom',
+          render: (ctx) => {
+            const emailErrors = ctx.errors['email'] ?? [];
+            return <div data-testid="custom">{emailErrors.length} errors</div>;
+          },
+        },
+      ];
+
+      renderFormBuilder({
+        nodes,
+        errors: { email: ['Required', 'Invalid format'] },
+      });
+
+      expect(screen.getByTestId('custom')).toHaveTextContent('2 errors');
     });
   });
 
@@ -377,12 +369,33 @@ describe('FormBuilder', () => {
         },
       ];
 
-      render(<FormBuilder nodes={nodes} values={DEFAULT_VALUES} onChange={() => {}} />);
+      renderFormBuilder({ nodes });
 
       expect(screen.getByText('Details')).toBeInTheDocument();
       expect(screen.getByText('Name Card')).toBeInTheDocument();
       expect(screen.getByLabelText('First Name')).toBeInTheDocument();
       expect(screen.getByLabelText('Last Name')).toBeInTheDocument();
+    });
+  });
+
+  // ── Context requirement ──
+
+  describe('context requirement', () => {
+    it('throws when used outside a provider', () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const nodes: FormNode<TestForm>[] = [
+        {
+          type: 'field',
+          config: { id: 'firstName', name: 'firstName', label: 'First Name', type: 'text' },
+        },
+      ];
+
+      expect(() => render(<FormBuilder nodes={nodes} />)).toThrow(
+        'FormBuilder must be used within <CrudFormProvider> or <StandaloneFormProvider>',
+      );
+
+      consoleSpy.mockRestore();
     });
   });
 });

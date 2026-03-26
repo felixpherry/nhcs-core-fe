@@ -48,7 +48,6 @@ export {
   type DividerNode,
   type CardNode,
   type CustomNode,
-  type FormBuilderContext,
 } from './components/form-builder';
 
 // CRUD form hook
@@ -157,3 +156,14 @@ export {
   FilterFieldLayout,
   type FilterFieldLayoutProps,
 } from './components/form-field-layout';
+
+export {
+  useFormContext,
+  useCrudContext,
+  CrudFormProvider,
+  StandaloneFormProvider,
+  type FormContextValue,
+  type CrudContextValue,
+  type CrudFormProviderProps,
+  type StandaloneFormProviderProps,
+} from './contexts/form-context';

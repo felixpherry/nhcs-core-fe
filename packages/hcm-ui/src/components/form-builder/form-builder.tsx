@@ -4,42 +4,26 @@ import type { ReactNode } from 'react';
 import { FormField } from '../form-field/form-field';
 import { Separator } from '../ui/separator';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
-import type { FormNode, FormBuilderContext } from './types';
+import type { FormNode } from './types';
+import type { FormContextValue } from '../../contexts/form-context';
+import { useFormContext } from '../../contexts/form-context';
 import { cn } from '../../lib/utils';
-
-// ── Props ──
 
 export interface FormBuilderProps<TForm extends Record<string, unknown>> {
   nodes: FormNode<TForm>[];
-  values: TForm;
-  errors?: Record<string, string[]>;
-  mode?: 'create' | 'edit' | 'view';
-  disabled?: boolean;
-  onChange: <K extends keyof TForm>(key: K, value: TForm[K]) => void;
-  onBlur?: (name: string) => void;
 }
-
-// ── Component ──
 
 export function FormBuilder<TForm extends Record<string, unknown>>(props: FormBuilderProps<TForm>) {
-  const { nodes, values, mode = 'create', onChange } = props;
+  const { nodes } = props;
+  const ctx = useFormContext<TForm>();
 
-  const ctx: FormBuilderContext<TForm> = {
-    values,
-    mode,
-    setValue: onChange,
-  };
-
-  return <>{nodes.map((node, i) => renderNode(node, i, ctx, props))}</>;
+  return <>{nodes.map((node, i) => renderNode(node, i, ctx))}</>;
 }
-
-// ── Recursive node renderer ──
 
 function renderNode<TForm extends Record<string, unknown>>(
   node: FormNode<TForm>,
   index: number,
-  ctx: FormBuilderContext<TForm>,
-  props: FormBuilderProps<TForm>,
+  ctx: FormContextValue<TForm>,
 ): ReactNode {
   switch (node.type) {
     case 'field':
@@ -47,13 +31,13 @@ function renderNode<TForm extends Record<string, unknown>>(
         <FormField
           key={node.config.id}
           config={node.config}
-          value={props.values[node.config.name]}
-          onChange={(val) => props.onChange(node.config.name, val as TForm[keyof TForm])}
-          onBlur={() => props.onBlur?.(node.config.name)}
-          errors={props.errors?.[node.config.name]}
-          disabled={props.disabled || props.mode === 'view'}
-          readOnly={props.mode === 'view'}
-          formValues={props.values}
+          value={ctx.values[node.config.name]}
+          onChange={(val) => ctx.setFieldValue(node.config.name, val as TForm[keyof TForm])}
+          onBlur={() => ctx.onBlur?.(node.config.name)}
+          errors={ctx.errors[node.config.name]}
+          disabled={ctx.isLoading || ctx.mode === 'view'}
+          readOnly={ctx.mode === 'view'}
+          formValues={ctx.values}
         />
       );
 
@@ -66,7 +50,7 @@ function renderNode<TForm extends Record<string, unknown>>(
               <p className="text-sm text-muted-foreground">{node.description}</p>
             )}
           </div>
-          {node.children.map((child, i) => renderNode(child, i, ctx, props))}
+          {node.children.map((child, i) => renderNode(child, i, ctx))}
         </div>
       );
 
@@ -81,7 +65,7 @@ function renderNode<TForm extends Record<string, unknown>>(
             'grid-cols-4': node.columns === 4,
           })}
         >
-          {node.children.map((child, i) => renderNode(child, i, ctx, props))}
+          {node.children.map((child, i) => renderNode(child, i, ctx))}
         </div>
       );
 
@@ -90,7 +74,7 @@ function renderNode<TForm extends Record<string, unknown>>(
         <div key={`group-${index}`} className="flex gap-4">
           {node.children.map((child, i) => (
             <div key={i} className="flex-1">
-              {renderNode(child, i, ctx, props)}
+              {renderNode(child, i, ctx)}
             </div>
           ))}
         </div>
@@ -109,7 +93,7 @@ function renderNode<TForm extends Record<string, unknown>>(
             </CardHeader>
           )}
           <CardContent className="space-y-4">
-            {node.children.map((child, i) => renderNode(child, i, ctx, props))}
+            {node.children.map((child, i) => renderNode(child, i, ctx))}
           </CardContent>
         </Card>
       );

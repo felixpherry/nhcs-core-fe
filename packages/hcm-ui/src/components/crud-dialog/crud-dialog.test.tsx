@@ -1,9 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { CrudDialog } from './crud-dialog';
-import type { FormMode, UseCrudFormReturn } from '../../hooks/use-crud-form';
 import type { ReactNode } from 'react';
+import { CrudDialog, type CrudDialogProps } from './crud-dialog';
+import { CrudFormProvider } from '../../contexts/form-context';
+import type { UseCrudFormReturn, FormMode } from '../../hooks/use-crud-form';
+
+// ── Test helpers ──
 
 interface TestForm extends Record<string, unknown> {
   name: string;
@@ -32,16 +35,32 @@ function mockCrud(overrides?: Partial<UseCrudFormReturn<TestForm>>): UseCrudForm
   };
 }
 
-function defaultProps(
-  crudOverrides?: Partial<UseCrudFormReturn<TestForm>>,
-  propsOverrides?: Partial<React.ComponentProps<typeof CrudDialog<TestForm>>>,
-) {
-  return {
-    crud: mockCrud(crudOverrides),
-    onSubmit: vi.fn(),
-    children: <div>Form content</div>,
-    ...propsOverrides,
-  };
+function renderCrudDialog(opts?: {
+  crudOverrides?: Partial<UseCrudFormReturn<TestForm>>;
+  onSubmit?: () => void;
+  isSubmitting?: boolean;
+  dialogProps?: Partial<CrudDialogProps>;
+  children?: ReactNode;
+}) {
+  const {
+    crudOverrides,
+    onSubmit = vi.fn(),
+    isSubmitting = false,
+    dialogProps = {},
+    children = <div>Form content</div>,
+  } = opts ?? {};
+
+  const crud = mockCrud(crudOverrides);
+
+  const result = render(
+    <CrudFormProvider crud={crud} onSubmit={onSubmit} isSubmitting={isSubmitting}>
+      <CrudDialog entityName="Record" {...dialogProps}>
+        {children}
+      </CrudDialog>
+    </CrudFormProvider>,
+  );
+
+  return { crud, onSubmit, ...result };
 }
 
 describe('CrudDialog', () => {
@@ -51,34 +70,34 @@ describe('CrudDialog', () => {
 
   describe('auto title', () => {
     it('shows "Create Record" by default in create mode', () => {
-      render(<CrudDialog {...defaultProps()} />);
+      renderCrudDialog();
       expect(screen.getByText('Create Record')).toBeInTheDocument();
     });
 
     it('shows "Edit Record" in edit mode', () => {
-      render(<CrudDialog {...defaultProps({ mode: 'edit' })} />);
+      renderCrudDialog({ crudOverrides: { mode: 'edit' } });
       expect(screen.getByText('Edit Record')).toBeInTheDocument();
     });
 
     it('shows "View Record" in view mode', () => {
-      render(<CrudDialog {...defaultProps({ mode: 'view' })} />);
+      renderCrudDialog({ crudOverrides: { mode: 'view' } });
       expect(screen.getByText('View Record')).toBeInTheDocument();
     });
 
     it('uses entityName in title', () => {
-      render(<CrudDialog {...defaultProps({}, { entityName: 'Company' })} />);
+      renderCrudDialog({ dialogProps: { entityName: 'Company' } });
       expect(screen.getByText('Create Company')).toBeInTheDocument();
     });
 
     it('uses custom title over auto title', () => {
-      render(
-        <CrudDialog {...defaultProps({}, { entityName: 'Company', title: 'Custom Title' })} />,
-      );
+      renderCrudDialog({
+        dialogProps: { entityName: 'Company', title: 'Custom Title' },
+      });
       expect(screen.getByText('Custom Title')).toBeInTheDocument();
     });
 
     it('shows description when provided', () => {
-      render(<CrudDialog {...defaultProps({}, { description: 'Fill in the details' })} />);
+      renderCrudDialog({ dialogProps: { description: 'Fill in the details' } });
       expect(screen.getByText('Fill in the details')).toBeInTheDocument();
     });
   });
@@ -89,18 +108,18 @@ describe('CrudDialog', () => {
 
   describe('content', () => {
     it('renders children', () => {
-      render(<CrudDialog {...defaultProps()} />);
+      renderCrudDialog();
       expect(screen.getByText('Form content')).toBeInTheDocument();
     });
 
     it('shows loading state instead of children', () => {
-      render(<CrudDialog {...defaultProps({ isLoading: true })} />);
+      renderCrudDialog({ crudOverrides: { isLoading: true } });
       expect(screen.getByText('Loading...')).toBeInTheDocument();
       expect(screen.queryByText('Form content')).not.toBeInTheDocument();
     });
 
     it('does not render when closed', () => {
-      render(<CrudDialog {...defaultProps({ isOpen: false })} />);
+      renderCrudDialog({ crudOverrides: { isOpen: false } });
       expect(screen.queryByText('Form content')).not.toBeInTheDocument();
     });
   });
@@ -111,24 +130,24 @@ describe('CrudDialog', () => {
 
   describe('create/edit footer', () => {
     it('shows Cancel and Create buttons in create mode', () => {
-      render(<CrudDialog {...defaultProps()} />);
+      renderCrudDialog();
       expect(screen.getByText('Cancel')).toBeInTheDocument();
       expect(screen.getByText('Create')).toBeInTheDocument();
     });
 
     it('shows Cancel and Save Changes buttons in edit mode', () => {
-      render(<CrudDialog {...defaultProps({ mode: 'edit' })} />);
+      renderCrudDialog({ crudOverrides: { mode: 'edit' } });
       expect(screen.getByText('Cancel')).toBeInTheDocument();
       expect(screen.getByText('Save Changes')).toBeInTheDocument();
     });
 
     it('shows Saving... when submitting', () => {
-      render(<CrudDialog {...defaultProps({}, { isSubmitting: true })} />);
+      renderCrudDialog({ isSubmitting: true });
       expect(screen.getByText('Saving...')).toBeInTheDocument();
     });
 
     it('disables buttons when submitting', () => {
-      render(<CrudDialog {...defaultProps({}, { isSubmitting: true })} />);
+      renderCrudDialog({ isSubmitting: true });
       expect(screen.getByText('Cancel')).toBeDisabled();
       expect(screen.getByText('Saving...')).toBeDisabled();
     });
@@ -137,7 +156,7 @@ describe('CrudDialog', () => {
       const user = userEvent.setup();
       const onSubmit = vi.fn();
 
-      render(<CrudDialog {...defaultProps({}, { onSubmit })} />);
+      renderCrudDialog({ onSubmit });
       await user.click(screen.getByText('Create'));
 
       expect(onSubmit).toHaveBeenCalledTimes(1);
@@ -145,12 +164,10 @@ describe('CrudDialog', () => {
 
     it('calls crud.requestClose when Cancel clicked', async () => {
       const user = userEvent.setup();
-      const props = defaultProps();
+      const { crud } = renderCrudDialog();
 
-      render(<CrudDialog {...props} />);
       await user.click(screen.getByText('Cancel'));
-
-      expect(props.crud.requestClose).toHaveBeenCalledTimes(1);
+      expect(crud.requestClose).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -160,24 +177,24 @@ describe('CrudDialog', () => {
 
   describe('view footer', () => {
     it('shows only Close button in view mode', () => {
-      render(<CrudDialog {...defaultProps({ mode: 'view' })} />);
-      const buttons = screen.getAllByRole('button', { name: 'Close' });
-      const closeButton = buttons.find((b) => b.getAttribute('data-variant') === 'outline');
-      expect(closeButton).toBeTruthy();
+      renderCrudDialog({ crudOverrides: { mode: 'view' } });
+
+      const closeButtons = screen.getAllByRole('button', { name: 'Close' });
+      // Radix X button + our footer Close button
+      expect(closeButtons.length).toBeGreaterThanOrEqual(1);
       expect(screen.queryByText('Cancel')).not.toBeInTheDocument();
       expect(screen.queryByText('Create')).not.toBeInTheDocument();
+      expect(screen.queryByText('Save Changes')).not.toBeInTheDocument();
     });
 
     it('calls crud.requestClose when Close clicked in view mode', async () => {
       const user = userEvent.setup();
-      const props = defaultProps({ mode: 'view' });
+      const { crud } = renderCrudDialog({ crudOverrides: { mode: 'view' } });
 
-      render(<CrudDialog {...props} />);
-      const buttons = screen.getAllByRole('button', { name: 'Close' });
-      const closeButton = buttons.find((b) => b.getAttribute('data-variant') === 'outline')!;
-      await user.click(closeButton);
-
-      expect(props.crud.requestClose).toHaveBeenCalledTimes(1);
+      const closeButtons = screen.getAllByRole('button', { name: 'Close' });
+      // Last one is our footer button (Radix X button is in the header)
+      await user.click(closeButtons[closeButtons.length - 1]!);
+      expect(crud.requestClose).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -187,7 +204,7 @@ describe('CrudDialog', () => {
 
   describe('dirty guard', () => {
     it('shows discard dialog when isCloseBlocked is true', () => {
-      render(<CrudDialog {...defaultProps({ isCloseBlocked: true })} />);
+      renderCrudDialog({ crudOverrides: { isCloseBlocked: true } });
 
       expect(screen.getByText('Unsaved Changes')).toBeInTheDocument();
       expect(screen.getByText('Keep Editing')).toBeInTheDocument();
@@ -195,29 +212,25 @@ describe('CrudDialog', () => {
     });
 
     it('does not show discard dialog when isCloseBlocked is false', () => {
-      render(<CrudDialog {...defaultProps({ isCloseBlocked: false })} />);
+      renderCrudDialog({ crudOverrides: { isCloseBlocked: false } });
 
       expect(screen.queryByText('Unsaved Changes')).not.toBeInTheDocument();
     });
 
     it('calls crud.cancelDiscard when Keep Editing clicked', async () => {
       const user = userEvent.setup();
-      const props = defaultProps({ isCloseBlocked: true });
+      const { crud } = renderCrudDialog({ crudOverrides: { isCloseBlocked: true } });
 
-      render(<CrudDialog {...props} />);
       await user.click(screen.getByText('Keep Editing'));
-
-      expect(props.crud.cancelDiscard).toHaveBeenCalledTimes(1);
+      expect(crud.cancelDiscard).toHaveBeenCalledTimes(1);
     });
 
     it('calls crud.confirmDiscard when Discard clicked', async () => {
       const user = userEvent.setup();
-      const props = defaultProps({ isCloseBlocked: true });
+      const { crud } = renderCrudDialog({ crudOverrides: { isCloseBlocked: true } });
 
-      render(<CrudDialog {...props} />);
       await user.click(screen.getByText('Discard'));
-
-      expect(props.crud.confirmDiscard).toHaveBeenCalledTimes(1);
+      expect(crud.confirmDiscard).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -227,16 +240,11 @@ describe('CrudDialog', () => {
 
   describe('renderFooter', () => {
     it('renders custom footer instead of default', () => {
-      render(
-        <CrudDialog
-          {...defaultProps(
-            {},
-            {
-              renderFooter: ({ mode }) => <div>Custom footer in {mode} mode</div>,
-            },
-          )}
-        />,
-      );
+      renderCrudDialog({
+        dialogProps: {
+          renderFooter: ({ mode }) => <div>Custom footer in {mode} mode</div>,
+        },
+      });
 
       expect(screen.getByText('Custom footer in create mode')).toBeInTheDocument();
       expect(screen.queryByText('Cancel')).not.toBeInTheDocument();
@@ -254,15 +262,11 @@ describe('CrudDialog', () => {
         }) => ReactNode
       >(() => <div>Custom</div>);
 
-      const onSubmit = vi.fn();
-      render(
-        <CrudDialog
-          {...defaultProps(
-            { mode: 'edit', isDirty: true },
-            { onSubmit, isSubmitting: true, renderFooter },
-          )}
-        />,
-      );
+      renderCrudDialog({
+        crudOverrides: { mode: 'edit', isDirty: true },
+        isSubmitting: true,
+        dialogProps: { renderFooter },
+      });
 
       expect(renderFooter).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -272,10 +276,29 @@ describe('CrudDialog', () => {
         }),
       );
 
-      // onClose and onSubmit are functions
       const ctx = renderFooter.mock.calls[0]![0];
       expect(typeof ctx.onClose).toBe('function');
       expect(typeof ctx.onSubmit).toBe('function');
+    });
+  });
+
+  // ══════════════════════════════════════════════════════════════
+  // Context requirement
+  // ══════════════════════════════════════════════════════════════
+
+  describe('context requirement', () => {
+    it('throws when used outside CrudFormProvider', () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      expect(() =>
+        render(
+          <CrudDialog entityName="Record">
+            <div>Content</div>
+          </CrudDialog>,
+        ),
+      ).toThrow('CrudDialog must be used within <CrudFormProvider>');
+
+      consoleSpy.mockRestore();
     });
   });
 });

@@ -11,27 +11,14 @@ import {
 } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { ConfirmDialog } from '../confirm-dialog/confirm-dialog';
-import type { FormMode, UseCrudFormReturn } from '../../hooks/use-crud-form';
+import type { FormMode } from '../../hooks/use-crud-form';
+import { useCrudContext } from '../../contexts/form-context';
 
-export interface CrudDialogProps<TForm extends Record<string, unknown>> {
-  /** The return value from useCrudForm */
-  crud: UseCrudFormReturn<TForm>;
-  /** Called when user clicks Save/Create */
-  onSubmit: () => void;
-  /** Whether the form is submitting */
-  isSubmitting?: boolean;
-  /** Entity name for auto-title (e.g. "Company") */
+export interface CrudDialogProps {
   entityName?: string;
-  /** Custom title override */
   title?: string;
-  /** Description */
   description?: string;
-  /** Max width class for the dialog. Default: 'sm:max-w-2xl' */
   maxWidth?: string;
-  /**
-   * Override the default footer. Receives context for building custom buttons.
-   * When omitted, renders the default Cancel/Create/Save Changes footer.
-   */
   renderFooter?: (ctx: {
     mode: FormMode;
     isDirty: boolean;
@@ -39,7 +26,6 @@ export interface CrudDialogProps<TForm extends Record<string, unknown>> {
     onClose: () => void;
     onSubmit: () => void;
   }) => ReactNode;
-  /** Form content */
   children: ReactNode;
 }
 
@@ -71,11 +57,8 @@ function getSubmitLabel(mode: FormMode): string {
 
 // ── Component ──
 
-export function CrudDialog<TForm extends Record<string, unknown>>(props: CrudDialogProps<TForm>) {
+export function CrudDialog(props: CrudDialogProps) {
   const {
-    crud,
-    onSubmit,
-    isSubmitting = false,
     entityName,
     title,
     description,
@@ -84,7 +67,7 @@ export function CrudDialog<TForm extends Record<string, unknown>>(props: CrudDia
     children,
   } = props;
 
-  // ── Default footer ──
+  const { crud, onSubmit, isSubmitting } = useCrudContext();
 
   const defaultFooter =
     crud.mode === 'view' ? (
@@ -135,7 +118,6 @@ export function CrudDialog<TForm extends Record<string, unknown>>(props: CrudDia
         </DialogContent>
       </Dialog>
 
-      {/* Discard confirmation — driven entirely by hook state */}
       <ConfirmDialog
         open={crud.isCloseBlocked}
         onOpenChange={(open) => !open && crud.cancelDiscard()}

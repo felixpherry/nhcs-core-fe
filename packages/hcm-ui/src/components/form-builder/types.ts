@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { FormFieldConfig } from '../form-field/types';
+import type { FormContextValue } from '../../contexts/form-context';
 
 // ── Node types ──
 
@@ -39,7 +40,8 @@ export interface CardNode<TForm extends Record<string, unknown>> {
 
 export interface CustomNode<TForm extends Record<string, unknown>> {
   type: 'custom';
-  render: (ctx: FormBuilderContext<TForm>) => ReactNode;
+  /** Receives the full form context — values, mode, errors, isDirty, editId, etc. */
+  render: (ctx: FormContextValue<TForm>) => ReactNode;
 }
 
 // ── Union ──
@@ -52,11 +54,3 @@ export type FormNode<TForm extends Record<string, unknown>> =
   | DividerNode
   | CardNode<TForm>
   | CustomNode<TForm>;
-
-// ── Context passed to custom nodes ──
-
-export interface FormBuilderContext<TForm extends Record<string, unknown>> {
-  values: TForm;
-  mode: 'create' | 'edit' | 'view';
-  setValue: <K extends keyof TForm>(key: K, value: TForm[K]) => void;
-}
