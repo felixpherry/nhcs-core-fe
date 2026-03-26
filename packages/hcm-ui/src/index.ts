@@ -132,4 +132,7 @@ export type {
   FilterOperator,
   FilterVariant,
   QueryKeys,
+  Option,
+  JoinOperator,
+  DataTableRowAction,
 } from './types/data-table';
