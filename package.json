@@ -11,7 +11,7 @@
     "prepare": "husky",
     "test": "turbo test",
     "test:watch": "vitest",
-    "storybook": "turbo --filter @nhcs/hcm-ui storybook"
+    "storybook": "turbo --filter web storybook"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,mjs}": [

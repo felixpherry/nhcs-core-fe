@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { trpc } from '@/lib/trpc';
-import type { CompanyGroupFormValue } from '@nhcs/features';
+import type { CompanyGroupFormValue } from '../_components/company-group-chooser';
 
 export function useValidateCompanyGroupCode() {
   const utils = trpc.useUtils();

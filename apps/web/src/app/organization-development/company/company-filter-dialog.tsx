@@ -2,7 +2,17 @@
 
 import { useReducer, useCallback, useState } from 'react';
 import { trpc } from '@/lib/trpc';
+import type { CompanyFilter } from '@nhcs/api/src/routers/organization-development/company/company.schema';
+import { useValidateCompanyGroupCode } from './hooks/use-validate-company-group-code';
+import type {
+  CompanyGroupFormValue,
+  CompanyGroupQueryParams,
+} from './_components/company-group-chooser';
+import { CompanyGroupChooser } from './_components/company-group-chooser';
+import type { AreaFormValue, AreaQueryParams } from './_components/area-chooser';
+import { AreaChooser } from './_components/area-chooser';
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -10,24 +20,13 @@ import {
   DialogHeader,
   DialogTitle,
   Input,
-  Button,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  FilterFieldLayout,
-} from '@nhcs/hcm-ui';
-import {
-  CompanyGroupChooser,
-  type CompanyGroupFormValue,
-  type CompanyGroupQueryParams,
-  AreaChooser,
-  type AreaFormValue,
-  type AreaQueryParams,
-} from '@nhcs/features';
-import type { CompanyFilter } from '@nhcs/api/src/routers/organization-development/company/company.schema';
-import { useValidateCompanyGroupCode } from './hooks/use-validate-company-group-code';
+} from '@/components/ui';
+import { FilterFieldLayout } from '@/components/form-field-layout';
 
 // ── Types ──
 

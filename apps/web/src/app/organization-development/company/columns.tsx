@@ -1,8 +1,10 @@
-import { PencilIcon, TrashIcon } from 'lucide-react';
-import { createColumns, Button, Checkbox } from '@nhcs/hcm-ui';
-import type { Company } from '@nhcs/api/src/routers/organization-development/company/company.schema';
+'use client';
 
-// ── Row action callbacks (injected by company-list.tsx) ──
+import { PencilIcon, TrashIcon } from 'lucide-react';
+import type { Company } from '@nhcs/api/src/routers/organization-development/company/company.schema';
+import { Button, Checkbox } from '@/components/ui';
+import type { ColumnDef } from '@tanstack/react-table';
+import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header';
 
 export interface CompanyRowActions {
   onEdit: (company: Company) => void;
@@ -11,21 +13,22 @@ export interface CompanyRowActions {
   onToggleStatus: (company: Company) => void;
 }
 
-export function createCompanyColumns(actions: CompanyRowActions) {
-  return createColumns<Company>([
-    // ── 1. Actions ──
+export function createCompanyColumns(actions: CompanyRowActions): ColumnDef<Company>[] {
+  return [
     {
       id: 'actions',
       header: 'Actions',
-      align: 'center',
-      cell: (_value, row) => (
+      size: 80,
+      enableSorting: false,
+      enableHiding: false,
+      cell: ({ row }) => (
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              actions.onEdit(row);
+              actions.onEdit(row.original);
             }}
             title="Edit"
           >
@@ -36,7 +39,7 @@ export function createCompanyColumns(actions: CompanyRowActions) {
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              actions.onDelete(row);
+              actions.onDelete(row.original);
             }}
             title="Delete"
           >
@@ -45,136 +48,139 @@ export function createCompanyColumns(actions: CompanyRowActions) {
         </div>
       ),
     },
-
-    // ── 2. Active toggle ──
     {
       id: 'active',
-      header: 'Active',
-      align: 'center',
       accessorKey: 'isActive',
-      cell: (_value, row) => (
+      header: 'Active',
+      size: 60,
+      enableSorting: false,
+      cell: ({ row }) => (
         <Checkbox
-          checked={row.isActive === 'T'}
-          onCheckedChange={() => actions.onToggleStatus(row)}
+          checked={row.original.isActive === 'T'}
+          onCheckedChange={() => actions.onToggleStatus(row.original)}
           onClick={(e) => e.stopPropagation()}
         />
       ),
     },
-
-    // ── 3. Company Code (clickable → view) — Fix 9: Button variant="link" ──
     {
       id: 'companyCode',
       accessorKey: 'companyCode',
-      header: 'Company Code',
-      sortable: true,
-      cell: (_value, row) => (
+      header: ({ column }) => <DataTableColumnHeader column={column} label="Company Code" />,
+      cell: ({ row }) => (
         <Button
           variant="link"
           className="h-auto p-0 font-medium"
           onClick={(e) => {
             e.stopPropagation();
-            actions.onView(row);
+            actions.onView(row.original);
           }}
         >
-          {row.companyCode}
+          {row.original.companyCode}
         </Button>
       ),
+      meta: { label: 'Company Code' },
     },
-
-    // ── 4-6. Core fields ──
     {
       id: 'companyName',
       accessorKey: 'companyName',
-      header: 'Company Name',
-      sortable: true,
+      header: ({ column }) => <DataTableColumnHeader column={column} label="Company Name" />,
+      meta: { label: 'Company Name' },
     },
     {
       id: 'companyAlias',
       accessorKey: 'companyAlias',
-      header: 'Alias',
-      sortable: true,
+      header: ({ column }) => <DataTableColumnHeader column={column} label="Alias" />,
+      meta: { label: 'Alias' },
     },
     {
       id: 'companyGroupName',
       accessorKey: 'companyGroupName',
-      header: 'Company Group',
-      sortable: true,
-      sortKey: 'companyGroupId',
+      header: ({ column }) => <DataTableColumnHeader column={column} label="Company Group" />,
+      meta: { label: 'Company Group' },
     },
-
-    // ── 7-12. Address fields ──
     {
       id: 'address',
       accessorKey: 'address',
       header: 'Address',
+      enableSorting: false,
+      meta: { label: 'Address' },
     },
     {
       id: 'stateName',
       accessorKey: 'stateName',
       header: 'State',
+      enableSorting: false,
+      meta: { label: 'State' },
     },
     {
       id: 'cityName',
       accessorKey: 'cityName',
       header: 'City',
+      enableSorting: false,
+      meta: { label: 'City' },
     },
     {
       id: 'districtName',
       accessorKey: 'districtName',
       header: 'District',
+      enableSorting: false,
+      meta: { label: 'District' },
     },
     {
       id: 'subDistrictName',
       accessorKey: 'subDistrictName',
       header: 'Sub District',
+      enableSorting: false,
+      meta: { label: 'Sub District' },
     },
     {
       id: 'zipCode',
       accessorKey: 'zipCode',
       header: 'Zip Code',
+      enableSorting: false,
+      meta: { label: 'Zip Code' },
     },
-
-    // ── 13. Phone ──
     {
       id: 'phoneNumber',
       accessorKey: 'phoneNumber',
       header: 'Phone Number',
+      enableSorting: false,
+      meta: { label: 'Phone Number' },
     },
-
-    // ── 14. Status Changed Date ──
     {
       id: 'onChangeDate',
       accessorKey: 'onChangeDate',
       header: 'Status Changed Date',
-      cell: 'date',
+      enableSorting: false,
+      meta: { label: 'Status Changed Date' },
     },
-
-    // ── 15-18. Audit fields ──
     {
       id: 'createdName',
       accessorKey: 'createdName',
       header: 'Created By',
+      enableSorting: false,
+      meta: { label: 'Created By' },
     },
     {
       id: 'createdDate',
       accessorKey: 'createdDate',
       header: 'Created At',
-      cell: 'date',
+      enableSorting: false,
+      meta: { label: 'Created At' },
     },
     {
       id: 'updatedName',
       accessorKey: 'updatedName',
       header: 'Updated By',
+      enableSorting: false,
+      meta: { label: 'Updated By' },
     },
     {
       id: 'updatedDate',
       accessorKey: 'updatedDate',
       header: 'Updated At',
-      cell: 'date',
+      enableSorting: false,
+      meta: { label: 'Updated At' },
     },
-
-    // ── Fix 7: Removed redundant StatusBadge column ──
-    // Active checkbox toggle already shows active/inactive state.
-    // No need for a separate StatusBadge column.
-  ]);
+  ];
 }

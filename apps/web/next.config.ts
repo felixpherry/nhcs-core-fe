@@ -2,13 +2,7 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   output: 'standalone',
-  transpilePackages: [
-    '@nhcs/api',
-    '@nhcs/types',
-    '@nhcs/registries',
-    '@nhcs/config',
-    '@nhcs/hcm-ui',
-  ],
+  transpilePackages: ['@nhcs/api', '@nhcs/types', '@nhcs/registries', '@nhcs/config'],
 };
 
 export default nextConfig;

@@ -21,22 +21,19 @@ Migrating from Nuxt 2/Vue 2 to Next.js + tRPC + TypeScript + Turborepo. The syst
 ## Monorepo Package Graph
 
 ```
-@nhcs/types <- @nhcs/registries <- @nhcs/api <- @nhcs/features <- apps/web
-                                                    |
-                                              @nhcs/hcm-ui
+@nhcs/types <- @nhcs/registries <- @nhcs/api <- apps/web
+
 ```
 
 ### Package Responsibilities
 
-| Package | Import | Responsibility |
-|---------|--------|----------------|
-| `types` | `@nhcs/types` | Zod schemas, envelope types, shared types |
-| `registries` | `@nhcs/registries` | Policy table, procedure registry |
-| `api` | `@nhcs/api` | tRPC routers, backendFetch (INTERNAL), errors |
-| `features` | `@nhcs/features` | Reusable feature components (choosers). Props-based data injection — no tRPC calls. |
-| `hcm-ui` | `@nhcs/hcm-ui` | Generic UI components and hooks. Framework-agnostic. |
-| `config` | `@nhcs/config` | Shared tsconfig |
-| `web` | N/A (app) | Next.js app. Owns tRPC client, pages, routing. |
+| Package      | Import             | Responsibility                                 |
+| ------------ | ------------------ | ---------------------------------------------- |
+| `types`      | `@nhcs/types`      | Zod schemas, envelope types, shared types      |
+| `registries` | `@nhcs/registries` | Policy table, procedure registry               |
+| `api`        | `@nhcs/api`        | tRPC routers, backendFetch (INTERNAL), errors  |
+| `config`     | `@nhcs/config`     | Shared tsconfig                                |
+| `web`        | N/A (app)          | Next.js app. Owns tRPC client, pages, routing. |
 
 ## Backend Integration
 
@@ -98,6 +95,7 @@ Common routers serve chooser dialogs used across multiple domains.
 ### Design Doc: v4.4
 
 The component library follows a headless hook + compound component pattern:
+
 - **Hooks** manage state and logic (useSelection, useDataTable, useChooser, useTreeTable, useWorkflowActions)
 - **Components** handle rendering (DataTable, ChooserDialog, TreeTable, WorkflowModalFooter)
 - Hooks are framework-agnostic. Components use shadcn/ui primitives.
@@ -105,24 +103,28 @@ The component library follows a headless hook + compound component pattern:
 ### Key Patterns
 
 **Imperative data setting (useDataTable):**
+
 ```ts
-table._setData(data, count);     // NOT passed as options
+table._setData(data, count); // NOT passed as options
 table._setLoading(isLoading);
 ```
 
 **Selection methods, not booleans:**
+
 ```ts
-state.isAllSelected(allKeys)     // Needs full key list
-state.isPartiallySelected(allKeys)
+state.isAllSelected(allKeys); // Needs full key list
+state.isPartiallySelected(allKeys);
 ```
 
 **Async combobox server filtering:**
+
 ```ts
 <Command shouldFilter={false}>   // cmdk client filtering disabled
 // queryFn receives search param, server does filtering
 ```
 
 **Chooser: keys in, projected values out:**
+
 ```ts
 chooser.open(['1', '2'])         // Takes IDs
 mapSelected(TData) → TValue      // Runs only at confirm
@@ -130,12 +132,14 @@ rowKey(row) === selectedKey      // String equality for matching
 ```
 
 **TreeTable policy-aware selection:**
+
 ```ts
-toggleNode(id)                   // Applies selection policy
+toggleNode(id); // Applies selection policy
 // NOT selection.toggleRow(id)   // Bypasses policy
 ```
 
 **Workflow pipeline:**
+
 ```
 idle → confirm → input → executing → idle
 // Steps are skipped if not configured on the action
@@ -143,15 +147,15 @@ idle → confirm → input → executing → idle
 
 ### Feature Components (Reusable Choosers)
 
-Live in `@nhcs/features`. Receive data via props — NO tRPC dependency:
+Live in `@nhcs/web`. Receive data via props — NO tRPC dependency:
 
 ```tsx
 <CompanyGroupChooser
-  listData={data}           // Consumer wires tRPC query
+  listData={data} // Consumer wires tRPC query
   listCount={count}
   isLoading={loading}
-  onQueryChange={setQuery}  // Notifies when search/page changes
-  validateCode={fn}         // Consumer handles code validation
+  onQueryChange={setQuery} // Notifies when search/page changes
+  validateCode={fn} // Consumer handles code validation
 />
 ```
 
@@ -172,11 +176,13 @@ Pattern: page owns tRPC queries + mutations. Components receive data and callbac
 ## Testing Strategy
 
 Kent C. Dodds Testing Trophy:
+
 - **Unit/Integration:** Vitest + React Testing Library + MSW
 - **E2E:** Playwright (future)
 - **Co-located:** `x.test.ts` next to `x.ts`
 
 Key testing patterns:
+
 - `debounceMs: 0` in test configs to avoid fake timer issues with Radix
 - Mock `useChooser`/`useTreeTable` return objects for component tests
 - `defaultProps()` as function (not const) for fresh mocks per test
@@ -184,6 +190,7 @@ Key testing patterns:
 ## Design System
 
 Based on Figma ESS/MSS design:
+
 - Primary: Blue (`oklch(0.555 0.245 266.68)`)
 - Semantic: `--success` (#0DB14B), `--warning` (#F26529)
 - Radius: 8px (`0.5rem`)

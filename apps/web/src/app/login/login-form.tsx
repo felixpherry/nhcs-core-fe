@@ -16,7 +16,7 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
-} from '@nhcs/hcm-ui';
+} from '@/components/ui';
 
 const loginSchema = z.object({
   userId: z

@@ -35,16 +35,12 @@ cd packages/hcm-ui && pnpm dlx shadcn@latest add <component> && cd ../..
 ## Package Boundaries (HARD RULES — never break)
 
 ```
-@nhcs/types <- @nhcs/registries <- @nhcs/api <- @nhcs/features <- apps/web
-                                                      |
-                                                @nhcs/hcm-ui
+@nhcs/types <- @nhcs/registries <- @nhcs/api <- apps/web
 ```
 
 1. `backendFetch` is INTERNAL to `@nhcs/api` — never export it.
-2. `@nhcs/features` receives data via props — NO tRPC imports. tRPC client lives in `apps/web`.
-3. `@nhcs/hcm-ui` is generic UI — no domain knowledge, no tRPC.
-4. No circular dependencies — features depend on api, never reverse.
-5. Common chooser endpoints live under `routers/common/`.
+2. No circular dependencies — web depend on api, never reverse.
+3. Common chooser endpoints live under `routers/common/`.
 
 ## Hard Rules (never break)
 

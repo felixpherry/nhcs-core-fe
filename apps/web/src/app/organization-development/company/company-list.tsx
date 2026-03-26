@@ -1,40 +1,28 @@
 'use client';
 
 import { useState } from 'react';
-import { useQueryState, parseAsString, parseAsInteger } from 'nuqs';
+import { useQueryState, parseAsInteger } from 'nuqs';
 import { trpc } from '@/lib/trpc';
-import {
-  useCrudDialog,
-  useDataTable,
-  DataTable,
-  DataTableContent,
-  DataTableToolbar,
-  DataTableSearch,
-  DataTableActions,
-  DataTablePagination,
-  ConfirmDialog,
-  PageHeader,
-  Button,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@nhcs/hcm-ui';
 import { createCompanyColumns } from './columns';
-import { CompanyFormDialog } from './company-form-dialog';
+// import { CompanyFormDialog } from './company-form-dialog';
 import { CompanyFilterDialog } from './company-filter-dialog';
 import type {
   Company,
   CompanyFilter,
 } from '@nhcs/api/src/routers/organization-development/company/company.schema';
 import { toast } from 'sonner';
+import { useCrudDialog } from '@/hooks/use-crud-dialog';
+import { useDataTable } from '@/hooks/use-data-table';
+import { PageHeader } from '@/components/page-header';
+import { DataTable } from '@/components/data-table/data-table';
+import { DataTableToolbar } from '@/components/data-table/data-table-toolbar';
+import { DataTableSortList } from '@/components/data-table/data-table-sort-list';
+import { Button } from '@/components/ui';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 
 export function CompanyList() {
-  const [search, setSearch] = useQueryState('search', parseAsString.withDefault(''));
-  const [statusFilter, setStatusFilter] = useQueryState('status', parseAsString.withDefault('T'));
-  const [urlPage, setUrlPage] = useQueryState('page', parseAsInteger.withDefault(1));
-  const [urlPageSize, setUrlPageSize] = useQueryState('pageSize', parseAsInteger.withDefault(10));
+  const [page] = useQueryState('page', parseAsInteger.withDefault(1));
+  const [perPage] = useQueryState('perPage', parseAsInteger.withDefault(10));
 
   const [filterOpen, setFilterOpen] = useState(false);
   const [advancedFilter, setAdvancedFilter] = useState<CompanyFilter | null>(null);
@@ -73,83 +61,56 @@ export function CompanyList() {
   });
 
   const query = trpc.organizationDevelopment.company.list.useQuery({
-    page: urlPage,
-    limit: urlPageSize,
+    page,
+    limit: perPage,
     orderBys: [],
-    // ...{
-    //   companyName: search || null,
-    //   isActive: statusFilter === 'all' ? null : statusFilter,
-    //   ...(advancedFilter ?? {}),
-    // },
+    ...(advancedFilter ?? {}),
   });
 
-  const table = useDataTable<Company>({
-    columns,
-    getRowId: (row) => String(row.companyId),
-    page: urlPage,
-    onPageChange: setUrlPage,
-    pageSize: urlPageSize,
-    onPageSizeChange: setUrlPageSize,
+  const { table } = useDataTable({
     data: (query.data?.data as Company[]) ?? [],
-    totalCount: (query.data?.count as number) ?? 0,
-    isLoading: query.isLoading,
-    isFetching: query.isFetching,
+    columns,
+    pageCount: Math.ceil(((query.data?.count as number) ?? 0) / perPage),
+    getRowId: (row) => String(row.companyId),
+    initialState: {
+      columnVisibility: {
+        address: false,
+        stateName: false,
+        cityName: false,
+        districtName: false,
+        subDistrictName: false,
+        zipCode: false,
+        phoneNumber: false,
+        onChangeDate: false,
+        createdName: false,
+        createdDate: false,
+        updatedName: false,
+        updatedDate: false,
+      },
+    },
   });
-
-  const handleSearch = (value: string) => {
-    setSearch(value || null);
-    table.setPage(1);
-  };
 
   return (
     <div className="space-y-4 p-6">
       <PageHeader title="Company" />
 
       <DataTable table={table}>
-        <DataTableToolbar>
-          <DataTableSearch value={search} onChange={handleSearch} placeholder="Search company..." />
-
-          <Select
-            value={statusFilter}
-            onValueChange={(value) => {
-              setStatusFilter(value);
-              table.setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="T">Active</SelectItem>
-              <SelectItem value="F">Inactive</SelectItem>
-              <SelectItem value="all">All</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <DataTableActions>
-            <Button variant="outline" onClick={() => setFilterOpen(true)}>
-              Advanced Filter
-            </Button>
-            <Button onClick={crud.openCreate}>Add Company</Button>
-          </DataTableActions>
+        <DataTableToolbar table={table}>
+          <DataTableSortList table={table} />
+          <Button variant="outline" onClick={() => setFilterOpen(true)}>
+            Advanced Filter
+          </Button>
+          <Button onClick={crud.openCreate}>Add Company</Button>
         </DataTableToolbar>
-        <DataTableContent />
-        <DataTablePagination />
       </DataTable>
 
-      <CompanyFormDialog crud={crud} />
+      {/* <CompanyFormDialog crud={crud} /> */}
 
       <CompanyFilterDialog
         open={filterOpen}
         onOpenChange={setFilterOpen}
-        onApply={(filter) => {
-          setAdvancedFilter(filter);
-          table.setPage(1);
-        }}
-        onReset={() => {
-          setAdvancedFilter(null);
-          table.setPage(1);
-        }}
+        onApply={(filter) => setAdvancedFilter(filter)}
+        onReset={() => setAdvancedFilter(null)}
       />
 
       <ConfirmDialog
