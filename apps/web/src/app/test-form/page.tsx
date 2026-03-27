@@ -1,103 +1,129 @@
-'use client';
+import { Button } from '@/components/ui';
 
-import { useAppForm } from '@/components/form';
-import { z } from 'zod';
+const variants = [
+  'default',
+  'primary-outline',
+  'primary-soft',
+  'neutral',
+  'neutral-soft',
+  'danger',
+  'danger-soft',
+  'danger-outline',
+  'success',
+  'success-soft',
+  'warning',
+  'warning-soft',
+  'info',
+  'unstyled',
+  'outline',
+  'secondary',
+  'destructive',
+  'ghost',
+  'link',
+] as const;
 
-const schema = z.object({
-  name: z.string().min(1, 'Name is required').max(80, 'Max 80 characters'),
-  code: z
-    .string()
-    .min(1, 'Code is required')
-    .max(30, 'Max 30 characters')
-    .regex(/^\S+$/, 'No spaces allowed'),
-  notes: z.string().min(10, 'At least 10 characters'),
-  status: z.string().min(1, 'Status is required'),
-});
+const sizes = ['xs', 'sm', 'default', 'lg'] as const;
 
-export default function TestFormPage() {
-  const form = useAppForm({
-    defaultValues: {
-      name: '',
-      code: '',
-      notes: '',
-      status: '',
-    },
-    validators: {
-      onBlur: schema,
-      onSubmit: schema,
-    },
-    onSubmit: async ({ value }) => {
-      alert(JSON.stringify(value, null, 2));
-    },
-  });
-
+export default function TestButtonPage() {
   return (
-    <div className="max-w-md mx-auto p-8">
-      <h1 className="text-2xl font-semibold mb-6">Test Form</h1>
+    <div className="space-y-10 p-8">
+      <h1 className="text-2xl font-semibold">Button Variants × Sizes</h1>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          form.handleSubmit();
-        }}
-        className="space-y-4"
-      >
-        <form.AppField name="code">
-          {(field) => (
-            <field.InputField labelProps={{ children: 'Code' }} required placeholder="Enter code" />
-          )}
-        </form.AppField>
+      <table className="w-full border-collapse text-sm">
+        <thead>
+          <tr>
+            <th className="border border-border px-3 py-2 text-left">Variant</th>
+            {sizes.map((s) => (
+              <th key={s} className="border border-border px-3 py-2">
+                {s}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {variants.map((v) => (
+            <tr key={v}>
+              <td className="border border-border px-3 py-2 font-mono text-xs">{v}</td>
+              {sizes.map((s) => (
+                <td key={s} className="border border-border px-3 py-2 text-center">
+                  <Button variant={v} size={s}>
+                    {v}
+                  </Button>
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
-        <form.AppField name="name">
-          {(field) => (
-            <field.InputField labelProps={{ children: 'Name' }} required placeholder="Enter name" />
-          )}
-        </form.AppField>
+      <h2 className="text-xl font-semibold">Disabled</h2>
+      <div className="flex flex-wrap gap-2">
+        {variants.map((v) => (
+          <Button key={v} variant={v} disabled>
+            {v}
+          </Button>
+        ))}
+      </div>
 
-        <form.AppField name="notes">
-          {(field) => (
-            <field.TextareaField
-              labelProps={{ children: 'Notes' }}
-              required
-              placeholder="Enter notes (min 10 chars)"
-              rows={4}
-            />
-          )}
-        </form.AppField>
+      <h2 className="text-xl font-semibold">Icon Sizes</h2>
+      <div className="flex items-center gap-3">
+        {(['icon-xs', 'icon-sm', 'icon', 'icon-lg'] as const).map((s) => (
+          <div key={s} className="flex flex-col items-center gap-1">
+            <Button variant="default" size={s}>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </Button>
+            <span className="text-xs text-muted-foreground">{s}</span>
+          </div>
+        ))}
+      </div>
 
-        <form.AppField name="status">
-          {(field) => (
-            <field.SelectField
-              labelProps={{ children: 'Status' }}
-              required
-              placeholder="Select status"
-              options={[
-                { value: 'active', label: 'Active' },
-                { value: 'inactive', label: 'Inactive' },
-                { value: 'pending', label: 'Pending' },
-              ]}
-            />
-          )}
-        </form.AppField>
-
-        <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
-          {([canSubmit, isSubmitting]) => (
-            <button
-              type="submit"
-              disabled={!canSubmit || isSubmitting}
-              className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-            >
-              {isSubmitting ? 'Submitting...' : 'Submit'}
-            </button>
-          )}
-        </form.Subscribe>
-      </form>
-
-      <form.Subscribe selector={(state) => state.values}>
-        {(values) => (
-          <pre className="mt-6 rounded bg-muted p-3 text-xs">{JSON.stringify(values, null, 2)}</pre>
-        )}
-      </form.Subscribe>
+      <h2 className="text-xl font-semibold">With Icons (left & right)</h2>
+      <div className="flex flex-wrap gap-2">
+        {(['default', 'danger', 'success', 'neutral', 'outline'] as const).map((v) => (
+          <div key={v} className="flex gap-2">
+            <Button variant={v}>
+              <svg
+                data-icon="inline-start"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              {v}
+            </Button>
+            <Button variant={v}>
+              {v}
+              <svg
+                data-icon="inline-end"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="m9 18 6-6-6-6" />
+              </svg>
+            </Button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
