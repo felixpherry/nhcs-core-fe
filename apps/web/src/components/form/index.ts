@@ -2,4 +2,6 @@ export { fieldContext, useFieldContext, formContext, useFormContext } from './fo
 export { useAppForm, withForm } from './form-hook';
 export { InputField } from './fields/input-field';
 export { TextareaField } from './fields/textarea-field';
+export { SelectField } from './fields/select-field';
+export { ChooserField } from './fields/chooser-field';
 export { CrudFormBridge, type CrudFormBridgeProps } from './crud-form-bridge';
