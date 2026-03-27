@@ -1,22 +1,41 @@
+'use client';
+
+import {
+  createColumnHelper,
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+  flexRender,
+} from '@tanstack/react-table';
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
-  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
+  Badge,
 } from '@/components/ui';
-import { Badge } from '@/components/ui';
+import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header';
 
-const employees = [
+interface Employee {
+  code: string;
+  name: string;
+  department: string;
+  position: string;
+  status: 'active' | 'inactive' | 'pending';
+  salary: number;
+  joinDate: string;
+}
+
+const data: Employee[] = [
   {
     code: 'EMP001',
     name: 'John Doe',
     department: 'Engineering',
     position: 'Senior Engineer',
     status: 'active',
+    salary: 120000,
     joinDate: '2020-01-15',
   },
   {
@@ -25,6 +44,7 @@ const employees = [
     department: 'HR',
     position: 'HR Manager',
     status: 'active',
+    salary: 95000,
     joinDate: '2019-03-22',
   },
   {
@@ -33,6 +53,7 @@ const employees = [
     department: 'Finance',
     position: 'Accountant',
     status: 'inactive',
+    salary: 85000,
     joinDate: '2021-07-10',
   },
   {
@@ -41,6 +62,7 @@ const employees = [
     department: 'Engineering',
     position: 'Tech Lead',
     status: 'active',
+    salary: 140000,
     joinDate: '2018-11-05',
   },
   {
@@ -49,6 +71,7 @@ const employees = [
     department: 'Marketing',
     position: 'Marketing Specialist',
     status: 'active',
+    salary: 75000,
     joinDate: '2022-02-28',
   },
   {
@@ -57,6 +80,7 @@ const employees = [
     department: 'Engineering',
     position: 'Junior Developer',
     status: 'pending',
+    salary: 65000,
     joinDate: '2024-01-08',
   },
   {
@@ -65,7 +89,35 @@ const employees = [
     department: 'Operations',
     position: 'Operations Manager',
     status: 'inactive',
+    salary: 110000,
     joinDate: '2017-06-14',
+  },
+  {
+    code: 'EMP008',
+    name: 'Emily Davis',
+    department: 'Engineering',
+    position: 'Staff Engineer',
+    status: 'active',
+    salary: 160000,
+    joinDate: '2016-09-20',
+  },
+  {
+    code: 'EMP009',
+    name: 'Tom Harris',
+    department: 'Finance',
+    position: 'CFO',
+    status: 'active',
+    salary: 200000,
+    joinDate: '2015-04-01',
+  },
+  {
+    code: 'EMP010',
+    name: 'Lisa Wang',
+    department: 'HR',
+    position: 'Recruiter',
+    status: 'pending',
+    salary: 70000,
+    joinDate: '2024-03-15',
   },
 ];
 
@@ -75,105 +127,98 @@ const statusVariant = {
   pending: 'warning-soft',
 } as const;
 
-export default function TestTablePage() {
-  return (
-    <div className="space-y-10 p-8">
-      <h1 className="text-2xl font-semibold">Table — Design System Test</h1>
+const columnHelper = createColumnHelper<Employee>();
 
+const columns = [
+  columnHelper.accessor('code', {
+    header: ({ column }) => <DataTableColumnHeader column={column} label="Code" />,
+    cell: (info) => <span className="font-mono">{info.getValue()}</span>,
+    enableMultiSort: true,
+  }),
+  columnHelper.accessor('name', {
+    header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
+    cell: (info) => <span className="font-medium">{info.getValue()}</span>,
+    enableMultiSort: true,
+  }),
+  columnHelper.accessor('department', {
+    header: ({ column }) => <DataTableColumnHeader column={column} label="Department" />,
+    enableMultiSort: true,
+  }),
+  columnHelper.accessor('position', {
+    header: ({ column }) => <DataTableColumnHeader column={column} label="Position" />,
+    enableMultiSort: true,
+  }),
+  columnHelper.accessor('salary', {
+    header: ({ column }) => <DataTableColumnHeader column={column} label="Salary" />,
+    cell: (info) => `$${info.getValue().toLocaleString()}`,
+    enableMultiSort: true,
+  }),
+  columnHelper.accessor('joinDate', {
+    header: ({ column }) => <DataTableColumnHeader column={column} label="Join Date" />,
+    enableMultiSort: true,
+  }),
+  columnHelper.accessor('status', {
+    header: ({ column }) => <DataTableColumnHeader column={column} label="Status" />,
+    cell: (info) => (
+      <Badge variant={statusVariant[info.getValue()]} size="sm">
+        {info.getValue()}
+      </Badge>
+    ),
+    enableMultiSort: true,
+  }),
+];
+
+export default function TestColumnHeaderPage() {
+  const table = useReactTable({
+    data,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    isMultiSortEvent: () => true,
+  });
+
+  return (
+    <div className="space-y-6 p-8">
       <div>
-        <h2 className="mb-3 text-lg font-medium">Employee List</h2>
+        <h1 className="text-2xl font-semibold">DataTableColumnHeader Test</h1>
+        <p className="mt-1 text-sub">
+          Click column headers to sort. Multi-sort is enabled — click multiple columns. Hover a
+          sorted column to see the clear (X) button.
+        </p>
+      </div>
+
+      <div className="overflow-hidden rounded-md border">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Code</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Department</TableHead>
-              <TableHead>Position</TableHead>
-              <TableHead>Join Date</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id} colSpan={header.colSpan}>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(header.column.columnDef.header, header.getContext())}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
           </TableHeader>
           <TableBody>
-            {employees.map((emp) => (
-              <TableRow key={emp.code}>
-                <TableCell className="font-mono">{emp.code}</TableCell>
-                <TableCell className="font-medium">{emp.name}</TableCell>
-                <TableCell>{emp.department}</TableCell>
-                <TableCell>{emp.position}</TableCell>
-                <TableCell>{emp.joinDate}</TableCell>
-                <TableCell>
-                  <Badge
-                    variant={statusVariant[emp.status as keyof typeof statusVariant]}
-                    size="sm"
-                  >
-                    {emp.status}
-                  </Badge>
-                </TableCell>
+            {table.getRowModel().rows.map((row) => (
+              <TableRow key={row.id}>
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
               </TableRow>
             ))}
           </TableBody>
-          <TableFooter>
-            <TableRow>
-              <TableCell colSpan={5}>Total Employees</TableCell>
-              <TableCell>{employees.length}</TableCell>
-            </TableRow>
-          </TableFooter>
         </Table>
       </div>
 
-      <div>
-        <h2 className="mb-3 text-lg font-medium">With Caption</h2>
-        <Table>
-          <TableCaption>A list of recent company groups.</TableCaption>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-25">Code</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Alias</TableHead>
-              <TableHead className="text-right">Companies</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow>
-              <TableCell className="font-mono">GRP001</TableCell>
-              <TableCell>Holding Company A</TableCell>
-              <TableCell>HCA</TableCell>
-              <TableCell className="text-right">12</TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell className="font-mono">GRP002</TableCell>
-              <TableCell>Subsidiary Group B</TableCell>
-              <TableCell>SGB</TableCell>
-              <TableCell className="text-right">5</TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell className="font-mono">GRP003</TableCell>
-              <TableCell>Regional Division C</TableCell>
-              <TableCell>RDC</TableCell>
-              <TableCell className="text-right">8</TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
-      </div>
-
-      <div>
-        <h2 className="mb-3 text-lg font-medium">Empty State</h2>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Code</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow>
-              <TableCell colSpan={3} className="h-24 text-center text-sub">
-                No results found.
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+      <div className="rounded-md border p-4">
+        <h2 className="mb-2 text-sm font-medium">Current Sort State</h2>
+        <pre className="text-xs text-sub">{JSON.stringify(table.getState().sorting, null, 2)}</pre>
       </div>
     </div>
   );
