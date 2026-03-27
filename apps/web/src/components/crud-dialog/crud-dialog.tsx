@@ -13,8 +13,8 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/confirm-dialog/confirm-dialog';
 import type { FormMode, UseCrudDialogReturn } from '@/hooks/use-crud-dialog';
 
-export interface CrudDialogProps {
-  crud: UseCrudDialogReturn<unknown>;
+export interface CrudDialogProps<TValue> {
+  crud: UseCrudDialogReturn<TValue>;
   isSubmitting?: boolean;
   isDirty?: boolean;
   formId?: string;
@@ -56,7 +56,7 @@ function getSubmitLabel(mode: FormMode): string {
   }
 }
 
-export function CrudDialog(props: CrudDialogProps) {
+export function CrudDialog<TValue>(props: CrudDialogProps<TValue>) {
   const {
     crud,
     isSubmitting = false,

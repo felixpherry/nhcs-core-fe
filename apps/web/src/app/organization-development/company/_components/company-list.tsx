@@ -16,7 +16,6 @@ import { useDataTable } from '@/hooks/use-data-table';
 import { PageHeader } from '@/components/page-header';
 import { DataTable } from '@/components/data-table/data-table';
 import { DataTableToolbar } from '@/components/data-table/data-table-toolbar';
-import { DataTableSortList } from '@/components/data-table/data-table-sort-list';
 import { Button } from '@/components/ui';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Filter, Plus } from 'lucide-react';
