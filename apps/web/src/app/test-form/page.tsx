@@ -141,8 +141,9 @@ function CompanyGroupChooserTable({
         placeholder="Search company groups..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
+        className="w-full md:w-1/2 lg:w-1/3"
       />
-      <div className="max-h-64 overflow-auto rounded border">
+      <div className="overflow-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -164,10 +165,13 @@ function CompanyGroupChooserTable({
                 <TableRow
                   key={row.companyGroupId}
                   className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => toggleRow(row)}
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest('[data-slot="checkbox"]')) return;
+                    toggleRow(row);
+                  }}
                 >
                   <TableCell>
-                    <Checkbox checked={isSelected(row)} />
+                    <Checkbox checked={isSelected(row)} onCheckedChange={() => toggleRow(row)} />
                   </TableCell>
                   <TableCell className="font-mono">{row.companyGroupCode}</TableCell>
                   <TableCell>{row.companyGroupName}</TableCell>
@@ -210,7 +214,7 @@ function EmployeeChooserTable({
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
-      <div className="max-h-64 overflow-auto rounded border">
+      <div className="overflow-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -360,7 +364,6 @@ export default function TestChooserPage() {
                 required
                 placeholder="Type code or search..."
                 dialogTitle="Select Company Group"
-                dialogDescription="Search and select a company group"
                 empty={{ id: 0, code: '', name: '' }}
                 getDisplay={(v) => (v.code ? `${v.code} - ${v.name}` : '')}
                 getRowId={(row) => String(row.companyGroupId)}

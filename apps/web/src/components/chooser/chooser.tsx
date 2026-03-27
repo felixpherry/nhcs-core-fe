@@ -119,7 +119,7 @@ export function Chooser<TData>({
         if (!v) handleCancel();
       }}
     >
-      <DialogContent className={className}>
+      <DialogContent size="full" className={className}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description ? (
@@ -129,17 +129,19 @@ export function Chooser<TData>({
           )}
         </DialogHeader>
 
-        {children(ctx)}
+        <div className="p-5">
+          {children(ctx)}
 
-        <div className="flex items-center justify-between border-t pt-4">
-          <span className="text-sm text-sub">{selection.state.selectedKeys.size} selected</span>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleCancel}>
-              Cancel
-            </Button>
-            <Button disabled={!canConfirm} onClick={handleConfirm}>
-              Confirm
-            </Button>
+          <div className="flex items-center justify-between border-t pt-4">
+            <span className="text-sm text-sub">{selection.state.selectedKeys.size} selected</span>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleCancel}>
+                Cancel
+              </Button>
+              <Button disabled={!canConfirm} onClick={handleConfirm}>
+                Confirm
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
