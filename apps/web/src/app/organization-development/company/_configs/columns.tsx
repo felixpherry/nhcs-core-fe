@@ -1,6 +1,6 @@
 'use client';
 
-import { PencilIcon, TrashIcon } from 'lucide-react';
+import { PencilIcon, Trash2 } from 'lucide-react';
 import type { Company } from '@nhcs/api/src/routers/organization-development/company/company.schema';
 import { Button, Checkbox } from '@/components/ui';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -22,29 +22,27 @@ export function createCompanyColumns(actions: CompanyRowActions): ColumnDef<Comp
       enableSorting: false,
       enableHiding: false,
       cell: ({ row }) => (
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
+        <div className="flex items-center gap-2">
+          <button
             onClick={(e) => {
               e.stopPropagation();
               actions.onEdit(row.original);
             }}
-            title="Edit"
+            className="text-primary"
           >
-            <PencilIcon className="size-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
+            <div className="sr-only">Edit</div>
+            <PencilIcon className="size-5" />
+          </button>
+          <button
             onClick={(e) => {
               e.stopPropagation();
               actions.onDelete(row.original);
             }}
-            title="Delete"
+            className="text-danger"
           >
-            <TrashIcon className="size-4 text-destructive" />
-          </Button>
+            <div className="sr-only">Delete</div>
+            <Trash2 className="size-5" />
+          </button>
         </div>
       ),
     },

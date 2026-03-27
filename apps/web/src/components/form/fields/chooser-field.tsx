@@ -149,7 +149,7 @@ export function ChooserField<TData, TValue>({
       description={description}
       className={className}
     >
-      <div className="flex gap-2">
+      <div className="flex">
         {disableInput ? (
           <div className="flex h-8 flex-1 items-center truncate rounded-lg border border-input bg-background px-3 text-sm">
             {displayText || <span className="text-muted-foreground">{placeholder}</span>}
@@ -165,17 +165,18 @@ export function ChooserField<TData, TValue>({
             onBlur={handleBlur}
             placeholder={placeholder}
             disabled={isValidating}
-            className="flex-1"
+            className="flex-1 rounded-r-none border-r-0"
             aria-invalid={errors.length > 0 || undefined}
             aria-describedby={errors.length > 0 ? `${id}-error` : undefined}
           />
         )}
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           size="icon"
           onClick={() => setOpen(true)}
           disabled={isValidating}
+          className="rounded-l-none border-l-0"
         >
           <Search />
         </Button>

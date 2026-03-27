@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { useQueryState, parseAsInteger } from 'nuqs';
 import { trpc } from '@/lib/trpc';
-import { createCompanyColumns } from './columns';
-// import { CompanyFormDialog } from './company-form-dialog';
+import { createCompanyColumns } from '../_configs/columns';
+import { CompanyFormDialog } from './company-form-dialog';
 import { CompanyFilterDialog } from './company-filter-dialog';
 import type {
   Company,
@@ -19,6 +19,7 @@ import { DataTableToolbar } from '@/components/data-table/data-table-toolbar';
 import { DataTableSortList } from '@/components/data-table/data-table-sort-list';
 import { Button } from '@/components/ui';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { Filter, Plus } from 'lucide-react';
 
 export function CompanyList() {
   const [page] = useQueryState('page', parseAsInteger.withDefault(1));
@@ -72,39 +73,27 @@ export function CompanyList() {
     columns,
     pageCount: Math.ceil(((query.data?.count as number) ?? 0) / perPage),
     getRowId: (row) => String(row.companyId),
-    initialState: {
-      columnVisibility: {
-        address: false,
-        stateName: false,
-        cityName: false,
-        districtName: false,
-        subDistrictName: false,
-        zipCode: false,
-        phoneNumber: false,
-        onChangeDate: false,
-        createdName: false,
-        createdDate: false,
-        updatedName: false,
-        updatedDate: false,
-      },
-    },
+    initialState: {},
   });
 
   return (
     <div className="space-y-4 p-6">
-      <PageHeader title="Company" />
+      <PageHeader title="Company List" />
 
       <DataTable table={table}>
         <DataTableToolbar table={table}>
-          <DataTableSortList table={table} />
-          <Button variant="outline" onClick={() => setFilterOpen(true)}>
+          <Button variant="secondary" onClick={() => setFilterOpen(true)}>
+            <Filter />
             Advanced Filter
           </Button>
-          <Button onClick={crud.openCreate}>Add Company</Button>
+          <Button onClick={crud.openCreate}>
+            <Plus />
+            Add
+          </Button>
         </DataTableToolbar>
       </DataTable>
 
-      {/* <CompanyFormDialog crud={crud} /> */}
+      <CompanyFormDialog crud={crud} />
 
       <CompanyFilterDialog
         open={filterOpen}

@@ -52,6 +52,7 @@ export {
 } from './command';
 export {
   Dialog,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,

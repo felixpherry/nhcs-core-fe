@@ -359,13 +359,16 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring/50 box-border;
   }
   body {
     @apply bg-background text-foreground;
   }
   html {
     @apply font-sans;
+  }
+  button {
+    @apply cursor-pointer disabled:pointer-events-none;
   }
 }
 

@@ -91,7 +91,7 @@ export function CrudDialog(props: CrudDialogProps) {
   return (
     <>
       <Dialog open={crud.isOpen} onOpenChange={(open) => !open && crud.requestClose()}>
-        <DialogContent className={`${maxWidth} max-h-[90vh] overflow-y-auto`}>
+        <DialogContent className={maxWidth}>
           <DialogHeader>
             <DialogTitle>{getTitle(crud.mode, entityName, title)}</DialogTitle>
             {description && <DialogDescription>{description}</DialogDescription>}

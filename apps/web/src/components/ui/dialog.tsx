@@ -32,7 +32,8 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        'fixed inset-0 z-50 max-h-screen overflow-y-auto bg-black/60 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0',
+        'fixed inset-0 z-50 max-h-screen overflow-y-auto bg-black/60 overscroll-none',
+        'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0',
         className,
       )}
       {...props}
@@ -41,7 +42,7 @@ function DialogOverlay({
 }
 
 const dialogContentVariants = cva(
-  'relative left-1/2 z-50 flex w-full -translate-x-1/2 flex-col border bg-background shadow-lg duration-200 border-soft data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 sm:rounded-lg',
+  'relative left-1/2 z-50 flex w-full -translate-x-1/2 flex-col border bg-background shadow-lg duration-200 border-soft sm:rounded-lg data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
   {
     variants: {
       size: {
